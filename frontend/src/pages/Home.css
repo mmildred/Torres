@@ -1,0 +1,123 @@
+:root {
+  --bg: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --accent: #2563eb;
+  --card: #ffffff;
+  --ring: #e5e7eb;
+}
+
+/* Modo oscuro automático según hora (opcional y simple):
+   añade la clase .dark al body desde App si lo deseas.
+   Aquí dejamos colores alternos por si decides activarlo. */
+body.dark {
+  --bg: #0b1220;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --accent: #60a5fa;
+  --card: #0f172a;
+  --ring: #1f2937;
+}
+
+.home {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Hero */
+.hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 2rem;
+  align-items: center;
+  max-width: 1100px;
+  margin: 24px auto 0;
+  padding: 2rem;
+}
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; }
+}
+
+.hero__kicker {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 0 0 .25rem;
+}
+
+.hero__title {
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  line-height: 1.1;
+  margin: 0 0 .75rem;
+}
+.accent { color: var(--accent); }
+
+.hero__desc {
+  color: var(--muted);
+  margin: 0 0 1rem;
+  max-width: 52ch;
+}
+
+.hero__cta { display: flex; gap: .75rem; }
+
+.btn {
+  appearance: none;
+  border-radius: 10px;
+  padding: .7rem 1rem;
+  border: 1px solid var(--ring);
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform .12s ease, box-shadow .12s ease, background .2s ease, color .2s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .25);
+}
+.btn--primary:hover { box-shadow: 0 8px 18px rgba(37, 99, 235, .35); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text);
+}
+
+/* Imagen hero */
+.hero__image img {
+  width: 100%;
+  height: 360px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.15);
+}
+
+/* Features */
+.features {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem 3rem;
+}
+.features h2 {
+  text-align: center;
+  font-size: 1.6rem;
+  margin: 2rem 0 1rem;
+}
+
+.features__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--ring);
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,.06);
+}
+.card h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+.card p { margin: 0; color: var(--muted); }
