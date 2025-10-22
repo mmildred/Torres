@@ -1,0 +1,24 @@
+/* Asegura contraste y trazo del avión */
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: hotpink; /* fondo del cuadrito */
+  color: var(--bg);           /* color del trazo del avión */
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .3s ease;
+}
+
+.logo-icon .logo-plane {
+  display: block;
+  stroke: currentColor;  /* usa la variable --bg de .logo-icon */
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* animación al hover ya la tienes */
+.logo:hover .logo-icon { transform: rotate(-15deg); }

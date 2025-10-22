@@ -1,346 +1,318 @@
-/* ==================================== */
-/* 1. VARIABLES GLOBALES Y RESET BÁSICO */
-/* ==================================== */
+  /* Estilos base */
+  .app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    min-height: 100vh;
+  }
 
-:root {
-  /* 🎨 Paleta de Colores (Ajustada para más contraste y sobriedad) */
-  --color-brand: #0077c2;      /* Azul Ciberseguro/Marca (Anterior: #007bff) */
-  --color-accent: #ff9800;     /* Naranja/Ámbar (Resalte, Advertencia) */
-  --color-neutral-dark: #212529; /* Negro Suave (Texto, Fondo de Navbar) */
-  --color-neutral-medium: #6c757d; /* Gris para botones secundarios */
-  --color-neutral-light: #f8f9fa; /* Fondo muy claro */
-
-  --color-success: #28a745;    /* Verde */
-  --color-danger: #dc3545;     /* Rojo */
-  
-  /* 💡 Sombras y Bordes */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --border-radius: 8px;
-
-  /* 🖋️ Tipografía (Se recomienda usar una fuente moderna como Roboto, Inter o Poppins si está disponible) */
-  --font-family-base: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
-
-/* Reset Básico y Estilos Generales */
-* {
-    box-sizing: border-box; /* Asegura que padding y border no aumenten el tamaño final del elemento */
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-family-base);
-  background-color: var(--color-neutral-light); /* Fondo más claro y definido */
-  color: var(--color-neutral-dark);
-}
-
-a {
-    text-decoration: none;
-    transition: color 0.2s ease-out; /* Transición para suavizar el hover */
-}
-
-/* ============================ */
-/* 2. ESTILOS DEL NAVBAR */
-/* ============================ */
-
-.navbar {
-    background-color: var(--color-neutral-dark); /* Color más profundo */
-    padding: 15px 40px; /* Más padding vertical */
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: var(--shadow-md); /* Sombra más definida */
+  /* Header minimalista */
+  .header {
     position: sticky;
     top: 0;
     z-index: 1000;
-}
+    background: var(--header-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
-.navbar-logo {
-    font-size: 1.6em;
-    font-weight: 700; /* Más audaz */
-    color: var(--color-brand);
-}
-
-.navbar-links {
+  .header-content {
     display: flex;
-    gap: 30px; /* Más espacio entre enlaces */
-}
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
 
-.navbar-link {
-    color: var(--color-neutral-light);
-    font-size: 1em;
-    padding: 5px 0;
+  .header.scrolled .header-content {
+    padding: 1rem 2rem;
+  }
+
+  /* Logo con avión de papel */
+  .logo-link {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    color: var(--bg);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+  }
+
+  .logo:hover .logo-icon {
+    transform: rotate(-15deg);
+  }
+
+  .logo-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .logo-text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary);
+    letter-spacing: -0.25px;
+  }
+
+  /* Navegación a la derecha */
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .nav-link {
+    text-decoration: none;
+    color: var(--text-light);
+    font-weight: 500;
+    font-size: 0.95rem;
+    letter-spacing: -0.1px;
+    transition: all 0.2s ease;
     position: relative;
-}
+    padding: 0.5rem 0;
+  }
 
-.navbar-link:hover {
-    color: var(--color-brand);
-}
+  .nav-link:hover {
+    color: var(--text);
+  }
 
-/* Indicador activo/hover sutil (Efecto de subrayado moderno) */
-.navbar-link::after {
+  .nav-link::after {
     content: '';
     position: absolute;
-    bottom: -5px;
+    bottom: 0;
     left: 0;
     width: 0;
     height: 2px;
-    background-color: var(--color-brand);
-    transition: width 0.3s ease-out;
-}
+    background: var(--primary);
+    transition: width 0.3s ease;
+  }
 
-.navbar-link:hover::after {
+  .nav-link:hover::after,
+  .nav-link.active::after {
     width: 100%;
-}
+  }
 
-.navbar-user-info {
+  .nav-link.active {
+    color: var(--primary);
+  }
+
+  .register-link {
+    background: var(--primary);
+    color: var(--bg) !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .register-link::after {
+    display: none;
+  }
+
+  .register-link:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Menú de usuario */
+  .user-menu-container {
+    position: relative;
+  }
+
+  .user-button {
     display: flex;
     align-items: center;
-    gap: 20px;
-}
-
-.navbar-user-text {
-    font-size: 0.9em;
-    margin: 0;
-    background-color: #3f464d; /* Fondo discreto */
-    color: var(--color-neutral-light);
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-weight: 500;
-}
-
-.navbar-login-link {
-    color: var(--color-accent); /* Resaltar login con color de acento */
-    font-weight: bold;
-}
-
-
-/* ================================== */
-/* 3. ESTILOS DEL COMPONENTE COURSES  */
-/* ================================== */
-
-/* Contenedor principal */
-.courses-container {
-  max-width: 960px; /* Ligeramente más ancho */
-  margin: 40px auto;
-  padding: 0 20px;
-}
-
-/* Tarjeta (Card) base */
-.card {
-  background-color: var(--color-white);
-  padding: 30px; /* Más padding interno */
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-sm); /* Sombra suave, menos dominante */
-  margin-bottom: 30px;
-  border-left: 6px solid var(--color-brand); /* Borde más grueso y limpio */
-  transition: box-shadow 0.3s ease-out;
-}
-
-.card:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); /* Ligera elevación al pasar el ratón */
-}
-
-/* Modificadores de tarjetas para color de borde */
-.card-create {
-    border-left-color: var(--color-success);
-}
-.card-upload {
-    border-left-color: var(--color-accent); /* Usa color de acento para la advertencia */
-}
-.card-list {
-    border-left-color: var(--color-brand);
-}
-
-/* Títulos */
-.card h2, .card h3 {
-  color: var(--color-neutral-dark);
-  font-weight: 600;
-  border-bottom: 1px solid var(--color-border-medium); /* Línea más fina */
-  padding-bottom: 15px;
-  margin-bottom: 20px;
-}
-
-/* Formularios e Inputs */
-.form-inline {
-  display: flex;
-  gap: 15px; /* Más separación */
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.input-text {
-  padding: 12px 14px; /* Más relleno */
-  border-radius: 4px;
-  border: 1px solid #ced4da;
-  flex-grow: 1;
-  min-width: 180px;
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-
-.input-text:focus {
-    border-color: var(--color-brand);
-    box-shadow: 0 0 0 3px rgba(0, 119, 194, 0.25); /* Anillo de enfoque profesional */
-    outline: none;
-}
-
-/* Pista de profesor */
-.teacher-hint {
-  font-size: 0.85em;
-  color: var(--color-neutral-medium);
-  margin-top: 10px;
-  padding-left: 5px;
-}
-
-/* Lista de Cursos */
-.course-list {
-  list-style: none;
-  padding: 0;
-}
-
-.course-item {
-  margin: 18px 0;
-  padding: 20px;
-  border: 1px solid #e9ecef; /* Borde más sutil */
-  border-radius: 6px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  background-color: var(--color-white);
-  transition: background-color 0.3s;
-}
-
-.course-item:hover {
-    background-color: #f5f5f5; /* Efecto hover sutil */
-}
-
-.course-title {
-  font-size: 1.3em;
-  color: var(--color-brand);
-  font-weight: 600;
-}
-
-.course-description {
-  margin-top: 6px;
-  color: var(--color-text-medium);
-  font-size: 0.9em;
-  max-width: 600px;
-}
-
-/* Contenido de archivos */
-.content-link {
-  font-size: 0.9em;
-  color: var(--color-neutral-medium); /* Color más suave */
-  text-decoration: none; 
-}
-
-.content-link:hover {
-    text-decoration: underline;
-    color: var(--color-brand); /* Resalta en el color de la marca */
-}
-
-/* Etiqueta Temporal (Mejorada para ser más un "badge") */
-.tag-temporal {
-  font-size: 0.75em;
-  font-weight: 600;
-  background-color: var(--color-accent);
-  color: var(--color-neutral-dark);
-  padding: 4px 10px;
-  border-radius: 4px;
-  margin-left: 15px;
-  display: inline-block;
-  opacity: 0.85;
-}
-
-/* Controles de curso */
-.course-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-}
-
-
-/* ====================== */
-/* 4. ESTILOS DE BOTONES  */
-/* ====================== */
-
-.btn {
-  padding: 10px 18px; /* Más relleno horizontal */
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.2s ease-out, transform 0.1s ease-out; /* Transición completa */
-  white-space: nowrap;
-  letter-spacing: 0.5px;
-  box-shadow: var(--shadow-sm);
-}
-
-.btn:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    transform: translateY(-1px); /* Efecto 3D sutil */
-}
-
-.btn:active {
-    transform: translateY(0);
-    box-shadow: var(--shadow-sm);
-}
-
-/* Botón Primario */
-.btn-primary {
-  background-color: var(--color-brand);
-  color: var(--color-white);
-}
-
-/* Botón Secundario (Sincronizar y Descargar) */
-.btn-secondary {
-  background-color: var(--color-neutral-medium);
-  color: var(--color-white);
-  padding: 9px 15px; 
-}
-
-/* Botón de Peligro (Logout) */
-.btn-danger {
-    background-color: var(--color-danger);
-    color: var(--color-white);
-    padding: 9px 15px;
-}
-
-/* Estilo para el input[type=file] */
-input[type="file"] {
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
     cursor: pointer;
-    font-size: 1em;
-    padding: 5px 0;
-}
+    transition: all 0.2s ease;
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
 
-/* Medios de consulta (Responsiveness básico) */
-@media (max-width: 768px) {
-    .navbar {
-        padding: 10px 20px;
-        flex-wrap: wrap; /* Permite que los elementos se envuelvan */
-        gap: 10px;
+  .user-button:hover {
+    border-color: var(--primary);
+    background: var(--bg-secondary);
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--primary);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .user-name {
+    color: var(--text);
+  }
+
+  /* Dropdown menu */
+  .dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.75rem;
+    min-width: 220px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 20px 40px var(--shadow);
+    padding: 0.75rem;
+    z-index: 1000;
+    animation: slideDown 0.2s ease;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
     }
-    .navbar-links {
-        display: none; /* Ocultar enlaces principales en móvil para simplificar */
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
-    .navbar-user-info {
-        gap: 10px;
+  }
+
+  .user-info {
+    padding: 0.75rem;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+  }
+
+  .user-welcome {
+    font-size: 0.875rem;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+
+  .user-role {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    text-transform: capitalize;
+  }
+
+  .menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.5rem 0;
+  }
+
+  .menu-item {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-decoration: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .menu-item:hover {
+    background: var(--bg-secondary);
+    color: var(--primary);
+  }
+
+  .logout-button {
+    color: #ef4444;
+  }
+
+  .logout-button:hover {
+    background: #fef2f2;
+    color: #dc2626;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header-content {
+      padding: 1rem 1.5rem;
     }
-    .courses-container {
-        margin: 20px auto;
-        padding: 0 10px;
+    
+    .nav-links {
+      gap: 1.5rem;
     }
-    .form-inline {
-        flex-direction: column; /* Apilar inputs en pantallas pequeñas */
-        align-items: stretch;
+    
+    .logo-text {
+      font-size: 1.1rem;
     }
-    .input-text {
-        min-width: 100%;
+    
+    .nav-link {
+      font-size: 0.9rem;
     }
-    .course-item {
-        flex-direction: column;
-        gap: 10px;
+  }
+
+  @media (max-width: 640px) {
+    .header-content {
+      padding: 1rem;
     }
-}
+    
+    .nav-links {
+      gap: 1rem;
+    }
+    
+    .logo-text {
+      display: none;
+    }
+    
+    .nav-link {
+      font-size: 0.85rem;
+    }
+    
+    .user-name {
+      display: none;
+    }
+    
+    .dropdown-menu {
+      right: -1rem;
+      min-width: 200px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .nav-links {
+      gap: 0.75rem;
+    }
+    
+    .register-link {
+      padding: 0.5rem 1rem !important;
+      font-size: 0.8rem;
+    }
+  }
