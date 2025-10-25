@@ -1,18 +1,39 @@
 import jwt from 'jsonwebtoken';
-export function auth(requiredRole){
-  return (req, res, next) => {
-    const hdr = req.headers.authorization || '';
-    const token = hdr.startsWith('Bearer ') ? hdr.slice(7) : null;
-    if (!token) return res.status(401).json({ message: 'No token' });
+import User from '../modules/auth/user.model.js';
+
+export function auth(requiredRole) {
+  return async (req, res, next) => {
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
-      if (requiredRole && payload.role !== requiredRole) {
-        return res.status(403).json({ message: 'Rol insuficiente' });
+      const token = req.header('Authorization')?.replace('Bearer ', '');
+      
+      if (!token) {
+        return res.status(401).json({ message: 'Token requerido' });
       }
-      req.user = payload;
+      
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('-password');
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Token inválido' });
+      }
+      
+      if (requiredRole && user.role !== requiredRole) {
+        return res.status(403).json({ 
+          message: `Acceso denegado. Se requiere rol: ${requiredRole}` 
+        });
+      }
+      
+      req.user = user;
       next();
-    } catch (err) {
-      return res.status(401).json({ message: 'Token inválido' });
+    } catch (error) {
+      res.status(401).json({ message: 'Token inválido' });
     }
   };
+}
+
+export function requireAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Se requieren permisos de administrador' });
+  }
+  next();
 }
