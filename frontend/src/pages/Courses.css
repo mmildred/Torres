@@ -1,306 +1,299 @@
+/* ===== Courses.css ===== */
+
+/* Usa las variables globales que ya definiste en tu Home.css:
+   --bg, --text, --muted, --accent, --card, --ring
+*/
+
+/* Contenedor y encabezado */
 .courses-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  min-height: 80vh;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  padding: 24px 16px 48px;
 }
 
-/* Header */
 .courses-header {
-  text-align: center;
-  margin-bottom: 3rem;
+  max-width: 1100px;
+  margin: 0 auto 20px;
+  text-align: left;
 }
 
-.title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 0.5rem;
+.courses-header .title {
+  font-size: clamp(1.4rem, 2vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
 }
 
-.subtitle {
-  font-size: 1.1rem;
-  color: #6b7280;
-  max-width: 600px;
-  margin: 0 auto;
+.courses-header .subtitle {
+  color: var(--muted);
+  font-size: 0.98rem;
+  margin: 0;
 }
 
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  grid-column: 1 / -1;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.empty-state h3 {
-  font-size: 1.5rem;
-  color: #374151;
-  margin-bottom: 0.5rem;
-}
-
-.empty-state p {
-  color: #6b7280;
-}
-
-/* Courses Grid */
+/* Grid responsivo */
 .courses-grid {
+  max-width: 1100px;
+  margin: 10px auto 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 2rem;
+  gap: 18px;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
 }
 
-/* Course Card */
-.course-card {
-  background: #ffffff;
+@media (min-width: 600px) {
+  .courses-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 940px) {
+  .courses-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Empty state */
+.empty-state {
+  grid-column: 1 / -1;
+  background: var(--card);
+  border: 1px solid var(--ring);
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 28px;
+  text-align: center;
+}
+
+.empty-state .empty-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+/* Tarjeta de curso */
+.course-card {
+  background: var(--card);
+  border: 1px solid var(--ring);
+  border-radius: 18px;
   overflow: hidden;
-  transition: all 0.3s ease;
-  border: 1px solid #f3f4f6;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  isolation: isolate;
 }
 
 .course-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  border-color: #e5e7eb;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0,0,0,.06);
+  border-color: rgba(0,0,0,.06);
 }
 
-/* Course Image */
+/* Imagen con categoría */
 .course-image {
   position: relative;
-  height: 180px;
-  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: #f4f6f8;
 }
 
 .course-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.course-card:hover .course-image img {
-  transform: scale(1.05);
+  display: block;
 }
 
 .course-category {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  background: rgba(99, 102, 241, 0.9);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  backdrop-filter: blur(10px);
+  inset: 12px auto auto 12px;
+  background: rgba(0,0,0,.65);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(2px);
 }
 
-/* Course Info */
+/* Cuerpo de la tarjeta */
 .course-info {
-  padding: 1.5rem;
-  flex: 1;
+  padding: 14px 14px 12px;
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
 .course-title {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 1rem;
-  line-height: 1.4;
+  line-height: 1.25;
+  margin: 0;
 }
 
-/* Course Meta */
 .course-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  font-size: 0.9rem;
 }
 
 .meta-item {
   display: flex;
+  gap: 6px;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  line-height: 1.25;
 }
 
 .meta-label {
-  color: #6b7280;
-  font-weight: 500;
+  color: var(--muted);
 }
 
 .meta-text {
-  color: #374151;
+  color: var(--text);
   font-weight: 600;
 }
 
-/* Course Description */
-.course-description {
-  color: #6b7280;
-  line-height: 1.5;
-  margin-bottom: 1.5rem;
-  flex: 1;
+.meta-text.instructor {
+  color: var(--accent);
+  font-weight: 700;
 }
 
-/* Course Footer */
+/* Descripción */
+.course-description {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  margin: 6px 0 0;
+  min-height: 2.6em; /* 2 líneas aprox para evitar salto */
+}
+
+/* Footer de la tarjeta */
 .course-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 1rem;
+  padding: 12px 14px 16px;
+  gap: 12px;
+  border-top: 1px dashed var(--ring);
 }
 
-.course-level {
-  flex-shrink: 0;
-}
-
+/* Niveles (badges) */
 .level-badge {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: capitalize;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ring);
+  background: #f6f7f9;
 }
 
-.level-badge.beginner {
-  background: #dcfce7;
-  color: #166534;
+.level-badge.beginner { /* Principiante */
+  background: rgba(37, 99, 235, 0.09);     /* usa --accent (azul) en la UI general */
+  border-color: rgba(37, 99, 235, 0.22);
+  color: var(--accent);
 }
-
-.level-badge.intermediate {
-  background: #fef3c7;
-  color: #92400e;
+.level-badge.intermediate { /* Intermedio */
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.28);
+  color: #a16207;
 }
-
-.level-badge.advanced {
-  background: #fee2e2;
+.level-badge.advanced { /* Avanzado */
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.28);
   color: #991b1b;
 }
 
-.level-badge.expert {
-  background: #e0e7ff;
-  color: #3730a3;
-}
-
-/* Course Actions */
+/* Acciones */
 .course-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 10px;
 }
 
-.details-btn {
-  background: transparent;
-  color: #6366f1;
-  border: 1.5px solid #6366f1;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.details-btn:hover {
-  background: #6366f1;
-  color: white;
-  transform: translateY(-1px);
-}
-
+.details-btn,
 .enroll-btn {
-  background: #6366f1;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  appearance: none;
+  border: 1px solid var(--ring);
+  background: #fff;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 8px 12px;
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
+}
+
+.details-btn:hover,
+.enroll-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,.05);
+  border-color: rgba(0,0,0,.06);
+}
+
+/* Botón primario (Inscribirse) usa --accent */
+.enroll-btn {
+  background: var(--accent);
+  color: #31d91f;
+  border-color: transparent;
 }
 
 .enroll-btn:hover {
-  background: #4f46e5;
+  filter: brightness(1.02);
+}
+
+.details-btn:focus,
+.enroll-btn:focus {
+  outline: 3px solid color-mix(in oklab, var(--accent) 35%, transparent);
+  outline-offset: 2px;
+}
+
+/* Accesibilidad: estados deshabilitados (si los usas) */
+.details-btn[disabled],
+.enroll-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Soporte dark si activas body.dark */
+body.dark .course-card {
+  box-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+body.dark .course-description {
+  color: var(--muted);
+}
+body.dark .details-btn {
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--ring);
+}
+/* Header con acciones a la derecha */
+.header-top {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.create-btn {
+  appearance: none;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+  white-space: nowrap;
+}
+
+.create-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 10px 22px rgba(0,0,0,.10);
+  filter: brightness(1.03);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .courses-container {
-    padding: 1rem;
-  }
-  
-  .title {
-    font-size: 2rem;
-  }
-  
-  .courses-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  
-  .course-footer {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  
-  .course-actions {
-    justify-content: stretch;
-  }
-  
-  .details-btn,
-  .enroll-btn {
-    flex: 1;
-    text-align: center;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .course-card {
-    background: #1f2937;
-    border-color: #374151;
-  }
-  
-  .course-title {
-    color: #f9fafb;
-  }
-  
-  .course-description {
-    color: #d1d5db;
-  }
-  
-  .meta-label {
-    color: #9ca3af;
-  }
-  
-  .meta-text {
-    color: #e5e7eb;
-  }
-  
-  .empty-state h3 {
-    color: #f9fafb;
-  }
-  
-  .empty-state p {
-    color: #9ca3af;
-  }
+.create-btn:focus {
+  outline: 3px solid color-mix(in oklab, var(--accent) 35%, transparent);
+  outline-offset: 2px;
 }

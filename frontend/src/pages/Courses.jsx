@@ -80,7 +80,18 @@ export default function Courses() {
         <h2 className="title">Catálogo de Cursos</h2>
         <p className="subtitle">
           Explora nuestra selección de cursos especializados
-        </p>
+        </p>  
+        <div className="courses-header">
+              {(user?.role === "profesor" || user?.role === "admin") && (
+          <button
+            className="create-btn"
+            onClick={() => navigate("/courses/new")}
+            title="Crear un nuevo curso"
+          >
+            + Crear curso
+          </button>
+        )}
+      </div>
       </div>
 
       <div className="courses-grid">

@@ -1,17 +1,30 @@
-import mongoose from 'mongoose';
-import { toJSON } from '../../utils/toJSON.js';
+// src/models/course.model.ts
+import e from "express";
+import { Schema, model, Types } from "mongoose";
 
-const contentSchema = new mongoose.Schema({
-  name: String,
-  path: String,
-  size: Number
-}, { _id: true });
+const OwnerSchema = new Schema(
+  {
+    _id: { type: Types.ObjectId, ref: "User", required: true },
+    name: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+);
 
-const courseSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, default: '' },
-  ownerId: { type: String, index: true },
-  contents: [contentSchema]
-}, { timestamps: true, toJSON });
+const CourseSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    description: { type: String, default: "" },
+    category: { type: String, default: "General" },
+    level: { type: String, enum: ["Principiante", "Intermedio", "Avanzado"], default: "Principiante" },
+    duration: { type: String, default: "Auto-guiado" },
+    thumbnail: { type: String, default: "" },
+    owner: {
+      type: OwnerSchema,
+      required: true, // <- Siempre debe existir
+    },
+  },
+  { timestamps: true }
+);
 
-export default mongoose.model('Course', courseSchema);
+export const Course = model("Course", CourseSchema);
+export default Course;

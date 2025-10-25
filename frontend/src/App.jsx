@@ -1,7 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { getUser, logout } from "./auth";
-import './AppHeader.css';
+import "./AppHeader.css";
+
+/** Helpers de tema (inline para que sea 1 solo archivo) */
+function getSavedTheme() {
+  return localStorage.getItem("theme") || "auto"; // 'light' | 'dark' | 'auto'
+}
+function applyTheme(mode) {
+  const root = document.documentElement;
+  let finalMode = mode;
+  if (mode === "auto") {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    finalMode = prefersDark ? "dark" : "light";
+  }
+  root.setAttribute("data-theme", finalMode);
+  localStorage.setItem("theme", mode);
+}
+function watchSystemTheme(onChange) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const handler = () => onChange();
+  mq.addEventListener?.("change", handler);
+  return () => mq.removeEventListener?.("change", handler);
+}
 
 export default function App() {
   const navigate = useNavigate();
@@ -9,21 +30,21 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Tema según hora
-  const theme = useMemo(() => {
-    const h = new Date().getHours();
-    return h >= 6 && h < 18 ? "light" : "dark";
-  }, []);
+  /** Estado del tema */
+  const [themeMode, setThemeMode] = useState(getSavedTheme()); // 'light' | 'dark' | 'auto'
 
+  /** Aplica el tema y escucha cambios del sistema si está en "auto" */
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+    applyTheme(themeMode);
+    if (themeMode === "auto") {
+      const unwatch = watchSystemTheme(() => applyTheme("auto"));
+      return unwatch;
+    }
+  }, [themeMode]);
 
-  // Efecto para detectar scroll
+  /** Efecto para detectar scroll (solo estética del header) */
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -35,34 +56,31 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <header 
-        className={`header ${scrolled ? 'scrolled' : ''}`}
-        role="banner"
-      >
+      <header className={`header ${scrolled ? "scrolled" : ""}`} role="banner">
         <div className="header-content">
+          {/* Logo: si hay sesión manda a /courses, si no a la Home */}
           <NavLink
-  to={user ? "/courses" : "/"}
-  className="logo-link"
-  aria-label="Ir al inicio"
->
-  <div className="logo">
-    <div className="logo-icon" aria-hidden>
-  <svg
-    viewBox="0 0 24 24"
-    width="20"
-    height="20"
-    aria-hidden="true"
-    className="logo-plane"
-  >
-    <path d="M22 2L11 13" />
-    <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-  </svg>
-</div>
-
-    <span className="logo-text">Campus Digital</span>
-  </div>
-</NavLink>
-
+            to={user ? "/courses" : "/"}
+            className="logo-link"
+            aria-label="Ir al inicio"
+          >
+            <div className="logo">
+              <div className="logo-icon" aria-hidden>
+                {/* Paper plane en trazo (se adapta al tema) */}
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  aria-hidden="true"
+                  className="logo-plane"
+                >
+                  <path d="M22 2L11 13" />
+                  <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+              </div>
+              <span className="logo-text">Campus Digital</span>
+            </div>
+          </NavLink>
 
           <nav className="nav" aria-label="Principal">
             <div className="nav-links">
@@ -80,6 +98,33 @@ export default function App() {
                   </NavLink>
                 </>
               )}
+            </div>
+
+            {/* Selector de Tema */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label
+                htmlFor="theme"
+                style={{ fontSize: 12, color: "var(--text-light)" }}
+              >
+                Tema
+              </label>
+              <select
+                id="theme"
+                value={themeMode}
+                onChange={(e) => setThemeMode(e.target.value)}
+                style={{
+                  padding: "6px 8px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  appearance: "none",
+                }}
+              >
+                <option value="light">Claro</option>
+                <option value="dark">Oscuro</option>
+                <option value="auto">Automático</option>
+              </select>
             </div>
 
             {user && (
@@ -102,7 +147,7 @@ export default function App() {
                       <div className="user-welcome">Hola, {user.name}</div>
                       <div className="user-role">{user.role}</div>
                     </div>
-                    
+
                     <div className="menu-divider"></div>
 
                     {user.role === "admin" && (
@@ -146,6 +191,7 @@ export default function App() {
         <Outlet />
       </main>
 
+      {/* Variables de tema (puedes moverlas a theme.css si prefieres) */}
       <style>{`
         :root[data-theme="light"] {
           --primary: #000000;
@@ -158,7 +204,7 @@ export default function App() {
           --shadow: rgba(0, 0, 0, 0.08);
           --header-bg: rgba(255, 255, 255, 0.95);
         }
-        
+
         :root[data-theme="dark"] {
           --primary: #ffffff;
           --primary-hover: #e0e0e0;

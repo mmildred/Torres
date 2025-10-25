@@ -22,3 +22,20 @@
 
 /* animación al hover ya la tienes */
 .logo:hover .logo-icon { transform: rotate(-15deg); }
+/* en AppHeader.css o theme.css que ya usas */
+:root[data-theme="light"] {
+  --primary:#000; --primary-hover:#333;
+  --text:#1a1a1a; --text-light:#666;
+  --bg:#fff; --bg-secondary:#f8f8f8;
+  --border:#e0e0e0; --shadow:rgba(0,0,0,.08);
+  --header-bg:rgba(255,255,255,.95);
+}
+
+:root[data-theme="dark"] {
+  --primary:#fff; --primary-hover:#e0e0e0;
+  --text:#fff; --text-light:#a0a0a0;
+  --bg:#000; --bg-secondary:#1a1a1a;
+  --border:#333; --shadow:rgba(0,0,0,.3);
+  --header-bg:rgba(0,0,0,.95);
+}
+
