@@ -1,8 +1,8 @@
-// src/modules/auth/routes.js
 import { Router } from 'express';
 import { register, login, registerWithInvite } from './usecases.js';
 import { body } from 'express-validator';
-import inviteCodesRoutes from './inviteCodes.routes.js'; // ← CON "routes.js" (con s)
+import inviteCodesRoutes from './inviteCodes.routes.js';
+import adminRouter from './admin.routes.js';
 
 const r = Router();
 
@@ -26,5 +26,6 @@ r.post('/register-with-invite',
 );
 
 r.use('/invite-codes', inviteCodesRoutes);
+r.use('/admin', adminRouter);
 
 export default r;

@@ -10,6 +10,7 @@ import authRoutes from './modules/auth/routes.js';
 import courseRoutes from './modules/courses/routes.js';
 import progressRoutes from './modules/progress/routes.js';
 import syncRoutes from './modules/sync/routes.js';
+import adminRoutes from './modules/auth/admin.routes.js';
 
 dotenv.config();
 const app = express();
@@ -26,14 +27,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-
 app.use('/auth', authRoutes);
 app.use('/courses', courseRoutes);
 app.use('/progress', progressRoutes);
 app.use('/sync', syncRoutes);
-
 app.get('/health', (_req, res) => res.json({ ok: true }));
-
+app.get('/admin', adminRoutes);
 
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 app.use(express.static(clientDist));

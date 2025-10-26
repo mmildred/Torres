@@ -1,5 +1,5 @@
 import express from 'express';
-import InviteCode from './InviteCode.model.js';
+import { InviteCode } from './InviteCode.model.js'; 
 import { auth, requireAdmin } from '../../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -128,6 +128,5 @@ router.get('/stats', requireAdmin, async (req, res) => {
     res.status(500).json({ message: 'Error obteniendo estadísticas' });
   }
 });
-
 
 export default router;

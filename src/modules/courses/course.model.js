@@ -1,4 +1,3 @@
-// src/models/course.model.ts
 import e from "express";
 import { Schema, model, Types } from "mongoose";
 
@@ -20,7 +19,7 @@ const CourseSchema = new Schema(
     thumbnail: { type: String, default: "" },
     owner: {
       type: OwnerSchema,
-      required: true, // <- Siempre debe existir
+      required: true, 
     },
   },
   { timestamps: true }

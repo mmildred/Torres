@@ -8,6 +8,7 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import Courses from './pages/Courses.jsx'
 import './styles.css'
+import Admin from './pages/Admin.jsx'
 
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }
 
@@ -20,6 +21,7 @@ createRoot(document.getElementById('root')).render(
         <Route path='login' element={<Login/>}/>
         <Route path='register' element={<Register/>}/>
         <Route path='courses' element={<Courses/>}/>
+        <Route path="/admin" element={<Admin />} />
       </Route>
     </Routes>
   </BrowserRouter>
