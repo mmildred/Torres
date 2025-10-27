@@ -14,6 +14,7 @@ import syncRoutes from './modules/sync/routes.js';
 dotenv.config();
 const app = express();
 
+app.use(cors());                  // <-- permite llamadas del front
 app.use(helmet());
 app.use(morgan('dev'));
 
@@ -25,7 +26,7 @@ app.use(express.json({ limit: '25mb' }));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use("/uploads", express.static(path.resolve("uploads")));
 
 app.use('/auth', authRoutes);
 app.use('/courses', courseRoutes);

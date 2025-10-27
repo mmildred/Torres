@@ -1,9 +1,19 @@
-import mongoose from 'mongoose';
-import { toJSON } from '../../utils/toJSON.js';
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true, index: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['student','teacher'], default: 'student' }
-}, { timestamps: true, toJSON });
-export default mongoose.model('User', userSchema);
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },             // <-- NUEVO
+    username: { type: String, required: true, trim: true, unique: true },
+    email: { type: String, required: true, trim: true, unique: true },
+    password: { type: String, required: true },
+    role: {                                                         // <-- NUEVO
+      type: String,
+      enum: ["admin", "profesor", "alumno"],
+      default: "alumno",
+      index: true,
+    },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model("User", userSchema);

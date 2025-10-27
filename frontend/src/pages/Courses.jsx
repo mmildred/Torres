@@ -7,6 +7,7 @@ import "./Courses.css";
 export default function Courses() {
   const [courses, setCourses] = useState([]);
   const [hasFetched, setHasFetched] = useState(false);
+  const [progressByCourse, setProgressByCourse] = useState({});
   const user = getUser();
   const navigate = useNavigate();
 
@@ -27,28 +28,33 @@ export default function Courses() {
   }, []);
 
   useEffect(() => {
-    // Verificar si el usuario está autenticado
-    if (!user) {
-      navigate("/login", { 
-        replace: true,
-        state: { message: "Debes iniciar sesión para ver los cursos" }
-      });
-      return;
-    }
+  // Sólo corre si ya se cargaron los cursos
+  if (!hasFetched || !courses.length) return;
 
-    (async () => {
-      try {
-        const res = await api.get("/courses");
-        const coursesWithOwner = res.data.map(course => ({
-          ...course,
-          owner: course.owner || { name: "Administrador" }
-        }));
-        setCourses(coursesWithOwner);
-      } catch (err) {
-        console.error("Error cargando cursos:", err);
+  let cancelled = false;
+  (async () => {
+    try {
+      const results = await Promise.all(
+        courses.map(async (c) => {
+          try {
+            const { data } = await api.get(`/courses/${c._id}/progress/me`);
+            return [c._id, data]; // { total, completed, percent }
+          } catch {
+            return [c._id, { total: 0, completed: 0, percent: 0 }];
+          }
+        })
+      );
+      if (!cancelled) {
+        setProgressByCourse(Object.fromEntries(results));
       }
-    })();
-  }, []);
+    } catch (e) {
+      console.error("Error cargando progreso por curso:", e);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, [hasFetched, courses]);
+
   
 
   const handleViewDetails = (courseId) => {
@@ -102,7 +108,9 @@ export default function Courses() {
             <p>Pronto agregaremos nuevos cursos a nuestro catálogo</p>
           </div>
         ) : (
-          courses.map((course) => (
+          courses.map((course) => {
+            const prog = progressByCourse[course._id] || { total: 0, completed: 0, percent: 0 };
+            return (
             <div key={course._id} className="course-card">
               <div className="course-image">
                 <img
@@ -162,12 +170,17 @@ export default function Courses() {
                       onClick={() => handleEnroll(course._id)}
                     >
                       Inscribirse
+                      <div className="progress" style={{ '--p': `${prog.percent || 0}%` }}>
+  <div />
+</div>
+
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

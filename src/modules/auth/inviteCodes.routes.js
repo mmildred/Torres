@@ -1,7 +1,8 @@
 import express from 'express';
 import InviteCode from './InviteCode.model.js';
-import { auth, requireAdmin } from '../../middleware/auth.js';
-import { v4 as uuidv4 } from 'uuid';
+import { requireAuth, allowRoles } from '../../middleware/auth.js';
+import { randomUUID } from "node:crypto";
+const code = randomUUID();
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.use((req, res, next) => {
   });
 });
 
-router.post('/generate', requireAdmin, async (req, res) => {
+router.post('/generate', requireAuth, async (req, res) => {
   try {
     const { expiresInDays = 7 } = req.body;
     const code = uuidv4().substring(0, 8).toUpperCase();
@@ -89,7 +90,7 @@ router.get('/verify/:code', async (req, res) => {
   }
 });
 
-router.get('/', requireAdmin, async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const codes = await InviteCode.find()
       .populate('createdBy', 'name email')
@@ -104,7 +105,7 @@ router.get('/', requireAdmin, async (req, res) => {
 });
 
 
-router.get('/stats', requireAdmin, async (req, res) => {
+router.get('/stats', requireAuth, async (req, res) => {
   try {
     const totalCodes = await InviteCode.countDocuments();
     const usedCodes = await InviteCode.countDocuments({ used: true });
