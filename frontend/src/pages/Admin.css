@@ -721,3 +721,56 @@
     left: 1rem;
   }
 }
+
+/* Estilos para los botones de eliminar */
+.btn-delete {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  color: #ef4444;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #fef2f2;
+  transform: scale(1.1);
+}
+
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cannot-delete {
+  padding: 0.5rem;
+  opacity: 0.5;
+  cursor: not-allowed;
+  font-size: 0.9rem;
+}
+
+/* Asegurar que los botones de acción estén alineados */
+.code-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-copy {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  color: #3b82f6;
+}
+
+.btn-copy:hover {
+  background: #dbeafe;
+  transform: scale(1.1);
+}

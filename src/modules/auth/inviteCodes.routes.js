@@ -129,4 +129,57 @@ router.get('/stats', requireAdmin, async (req, res) => {
   }
 });
 
+router.delete('/:codeId', auth(), async (req, res) => {
+  try {
+    console.log('🔄 DELETE /invite-codes/:codeId - Iniciando eliminación');
+    const { codeId } = req.params;
+    
+    console.log('📝 ID del código a eliminar:', codeId);
+
+    // Verificar que el código existe
+    const inviteCode = await InviteCode.findById(codeId);
+    
+    if (!inviteCode) {
+      console.log('❌ Código no encontrado:', codeId);
+      return res.status(404).json({ message: 'Código de invitación no encontrado' });
+    }
+
+    console.log('📋 Código encontrado:', {
+      id: inviteCode._id,
+      code: inviteCode.code,
+      used: inviteCode.used
+    });
+
+    // Solo permitir eliminar códigos no utilizados
+    if (inviteCode.used) {
+      console.log('❌ Código ya utilizado, no se puede eliminar');
+      return res.status(400).json({ 
+        message: 'No se puede eliminar un código que ya ha sido utilizado' 
+      });
+    }
+
+    // Eliminar el código
+    await InviteCode.findByIdAndDelete(codeId);
+    
+    console.log('✅ Código eliminado exitosamente');
+
+    res.json({ 
+      message: 'Código de invitación eliminado correctamente',
+      deletedCode: {
+        id: inviteCode._id,
+        code: inviteCode.code
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error eliminando código de invitación:', error);
+    res.status(500).json({ 
+      message: 'Error interno del servidor',
+      error: error.message 
+    });
+  }
+});
+
+
+
 export default router;

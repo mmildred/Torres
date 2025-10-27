@@ -10,6 +10,7 @@ export default function Admin() {
   const [inviteCodes, setInviteCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState({}); // ✅ AGREGAR ESTA LÍNEA
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
 
@@ -119,6 +120,43 @@ export default function Admin() {
       setGenerating(false);
     }
   };
+
+  // ✅ AGREGAR ESTA FUNCIÓN PARA ELIMINAR CÓDIGOS
+  const deleteInviteCode = async (codeId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este código de invitación?')) {
+      return;
+    }
+
+    setDeleteLoading(prev => ({ ...prev, [codeId]: true }));
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:4000/auth/invite-codes/${codeId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('🔄 Response status:', response.status);
+    
+    const data = await response.json();
+    console.log('📝 Response data:', data);
+
+    if (response.ok) {
+      showSnackbar('Código eliminado correctamente', 'success');
+      loadAllData(); // Recargar la lista
+    } else {
+      showSnackbar(data.message || 'Error eliminando código', 'error');
+    }
+  } catch (error) {
+    console.error('❌ Error en deleteInviteCode:', error);
+    showSnackbar('Error de conexión: ' + error.message, 'error');
+  } finally {
+    setDeleteLoading(prev => ({ ...prev, [codeId]: false }));
+  }
+};
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -305,6 +343,23 @@ export default function Admin() {
                           >
                             📋
                           </button>
+                        )}
+                        {/* ✅ BOTÓN PARA ELIMINAR - Solo para códigos no utilizados */}
+                        {!code.used && (
+                          <button 
+                            onClick={() => deleteInviteCode(code._id)}
+                            disabled={deleteLoading[code._id]}
+                            className="btn-delete"
+                            title="Eliminar código"
+                          >
+                            {deleteLoading[code._id] ? '⏳' : '🗑️'}
+                          </button>
+                        )}
+                        {/* Mensaje para códigos usados */}
+                        {code.used && (
+                          <span className="cannot-delete" title="No se puede eliminar un código utilizado">
+                            🔒
+                          </span>
                         )}
                       </div>
                     </div>

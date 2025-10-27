@@ -3,6 +3,8 @@ import { register, login, registerWithInvite } from './usecases.js';
 import { body } from 'express-validator';
 import inviteCodesRoutes from './inviteCodes.routes.js';
 import adminRouter from './admin.routes.js';
+import { auth } from '../../middleware/auth.js';
+import profileRouter from './profile.routes.js';
 
 const r = Router();
 
@@ -27,5 +29,6 @@ r.post('/register-with-invite',
 
 r.use('/invite-codes', inviteCodesRoutes);
 r.use('/admin', adminRouter);
+r.use('/profile', profileRouter);
 
 export default r;
