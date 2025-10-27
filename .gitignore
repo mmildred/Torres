@@ -1,3 +1,8 @@
-node_modules
-node_modules
-node_modules
+@'
+node_modules/
+.env
+dist/
+build/
+coverage/
+*.log
+'@ | Out-File -Encoding utf8 .gitignore
