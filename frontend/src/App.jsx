@@ -3,9 +3,8 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { getUser, logout } from "./auth";
 import "./AppHeader.css";
 
-/** Helpers de tema (inline para que sea 1 solo archivo) */
 function getSavedTheme() {
-  return localStorage.getItem("theme") || "auto"; // 'light' | 'dark' | 'auto'
+  return localStorage.getItem("theme") || "auto"; 
 }
 function applyTheme(mode) {
   const root = document.documentElement;
@@ -30,10 +29,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  /** Estado del tema */
-  const [themeMode, setThemeMode] = useState(getSavedTheme()); // 'light' | 'dark' | 'auto'
+  const [themeMode, setThemeMode] = useState(getSavedTheme()); 
 
-  /** Aplica el tema y escucha cambios del sistema si está en "auto" */
   useEffect(() => {
     applyTheme(themeMode);
     if (themeMode === "auto") {
@@ -42,7 +39,7 @@ export default function App() {
     }
   }, [themeMode]);
 
-  /** Efecto para detectar scroll (solo estética del header) */
+  
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);

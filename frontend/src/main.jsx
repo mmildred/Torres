@@ -10,6 +10,8 @@ import Courses from './pages/Courses.jsx'
 import './styles.css'
 import Admin from './pages/Admin.jsx'
 import Profile from './pages/Profile.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }
 
@@ -21,9 +23,14 @@ createRoot(document.getElementById('root')).render(
         <Route path='courses' element={<Courses/>}/>
         <Route path='login' element={<Login/>}/>
         <Route path='register' element={<Register/>}/>
-        <Route path='courses' element={<Courses/>}/>
         <Route path="/admin" element={<Admin />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path='forgot-password' element={<ForgotPassword />} />
+        <Route path='reset-password' element={<ResetPassword />} />
+
+        console.log('🔍 ForgotPassword import:', ForgotPassword);
+        console.log('🔍 ResetPassword import:', ResetPassword);
+        console.log('🔍 All routes should be loaded');
       </Route>
     </Routes>
   </BrowserRouter>

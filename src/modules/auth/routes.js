@@ -5,6 +5,7 @@ import inviteCodesRoutes from './inviteCodes.routes.js';
 import adminRouter from './admin.routes.js';
 import { auth } from '../../middleware/auth.js';
 import profileRouter from './profile.routes.js';
+import passwordResetRoutes from './passwordReset.routes.js';
 
 const r = Router();
 
@@ -27,6 +28,7 @@ r.post('/register-with-invite',
   registerWithInvite
 );
 
+r.use('/password-reset', passwordResetRoutes);
 r.use('/invite-codes', inviteCodesRoutes);
 r.use('/admin', adminRouter);
 r.use('/profile', profileRouter);
