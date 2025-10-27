@@ -1,3 +1,4 @@
+// InviteCode.model.js
 import mongoose from 'mongoose';
 
 const inviteCodeSchema = new mongoose.Schema({
@@ -33,4 +34,4 @@ const inviteCodeSchema = new mongoose.Schema({
   timestamps: true
 });
 
-export default mongoose.model('InviteCode', inviteCodeSchema);
+export const InviteCode = mongoose.model('InviteCode', inviteCodeSchema);

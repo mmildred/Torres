@@ -4,12 +4,36 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { getUser, logout } from "./auth";
 import "./AppHeader.css";
 
+<<<<<<< HEAD
+=======
+function getSavedTheme() {
+  return localStorage.getItem("theme") || "auto"; 
+}
+function applyTheme(mode) {
+  const root = document.documentElement;
+  let finalMode = mode;
+  if (mode === "auto") {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    finalMode = prefersDark ? "dark" : "light";
+  }
+  root.setAttribute("data-theme", finalMode);
+  localStorage.setItem("theme", mode);
+}
+function watchSystemTheme(onChange) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const handler = () => onChange();
+  mq.addEventListener?.("change", handler);
+  return () => mq.removeEventListener?.("change", handler);
+}
+
+>>>>>>> 1c49479ceb12304ea937c03ed0c216b15b0593e1
 export default function App() {
   const navigate = useNavigate();
   const user = getUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+<<<<<<< HEAD
   const [themeMode, setThemeMode] = useState(localStorage.getItem("theme") || "auto");
   const applyTheme = (mode) => {
     const root = document.documentElement;
@@ -20,6 +44,9 @@ export default function App() {
     root.setAttribute("data-theme", finalMode);
     localStorage.setItem("theme", mode);
   };
+=======
+  const [themeMode, setThemeMode] = useState(getSavedTheme()); 
+>>>>>>> 1c49479ceb12304ea937c03ed0c216b15b0593e1
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -31,6 +58,10 @@ export default function App() {
     }
   }, [themeMode]);
 
+<<<<<<< HEAD
+=======
+  
+>>>>>>> 1c49479ceb12304ea937c03ed0c216b15b0593e1
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);

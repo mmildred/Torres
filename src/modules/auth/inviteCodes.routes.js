@@ -1,11 +1,9 @@
 import express from 'express';
-import InviteCode from './InviteCode.model.js';
-import { requireAuth, allowRoles } from '../../middleware/auth.js';
-import { randomUUID } from "node:crypto";
-const code = randomUUID();
+import { InviteCode } from './InviteCode.model.js'; 
+import { auth, requireAdmin } from '../../middleware/auth.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
-
 
 router.use((req, res, next) => {
   console.log('🛂 [ROUTE DEBUG] Llegó a invite-codes routes:', req.method, req.url);
@@ -20,7 +18,7 @@ router.use((req, res, next) => {
   });
 });
 
-router.post('/generate', requireAuth, async (req, res) => {
+router.post('/generate', requireAdmin, async (req, res) => {
   try {
     const { expiresInDays = 7 } = req.body;
     const code = uuidv4().substring(0, 8).toUpperCase();
@@ -90,7 +88,7 @@ router.get('/verify/:code', async (req, res) => {
   }
 });
 
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const codes = await InviteCode.find()
       .populate('createdBy', 'name email')
@@ -105,7 +103,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 
-router.get('/stats', requireAuth, async (req, res) => {
+router.get('/stats', requireAdmin, async (req, res) => {
   try {
     const totalCodes = await InviteCode.countDocuments();
     const usedCodes = await InviteCode.countDocuments({ used: true });
@@ -127,6 +125,38 @@ router.get('/stats', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error obteniendo estadísticas:', error);
     res.status(500).json({ message: 'Error obteniendo estadísticas' });
+  }
+});
+
+router.delete('/:codeId', auth(), async (req, res) => {
+  try {
+    const { codeId } = req.params;
+    
+    // Verificar que el código existe
+    const inviteCode = await InviteCode.findById(codeId);
+    
+    if (!inviteCode) {
+      return res.status(404).json({ message: 'Código de invitación no encontrado' });
+    }
+
+    // Solo permitir eliminar códigos no utilizados
+    if (inviteCode.used) {
+      return res.status(400).json({ 
+        message: 'No se puede eliminar un código que ya ha sido utilizado' 
+      });
+    }
+
+    // Eliminar el código
+    await InviteCode.findByIdAndDelete(codeId);
+
+    res.json({ 
+      message: 'Código de invitación eliminado correctamente',
+      deletedCode: inviteCode
+    });
+
+  } catch (error) {
+    console.error('Error eliminando código de invitación:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
 

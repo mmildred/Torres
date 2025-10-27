@@ -1,11 +1,10 @@
-import mongoose from "mongoose";
-const { Schema, Types } = mongoose;
+import e from "express";
+import { Schema, model, Types } from "mongoose";
 
 const OwnerSchema = new Schema(
   {
     _id: { type: Types.ObjectId, ref: "User", required: true },
-    name: { type: String, required: true },
-    role: { type: String, enum: ["admin", "profesor"], required: true },
+    name: { type: String, required: true, trim: true },
   },
   { _id: false }
 );
@@ -16,10 +15,15 @@ const CourseSchema = new Schema(
     description: { type: String, default: "" },
     category: { type: String, default: "General" },
     level: { type: String, enum: ["Principiante", "Intermedio", "Avanzado"], default: "Principiante" },
+    duration: { type: String, default: "Auto-guiado" },
     thumbnail: { type: String, default: "" },
-    owner: { type: OwnerSchema, required: true },
+    owner: {
+      type: OwnerSchema,
+      required: true, 
+    },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Course", CourseSchema);
+export const Course = model("Course", CourseSchema);
+export default Course;
