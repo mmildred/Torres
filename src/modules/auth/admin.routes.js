@@ -1,5 +1,5 @@
 import express from 'express';
-import { auth, requireAdmin } from '../../middleware/auth.js';
+import { auth } from '../../middleware/auth.js';
 import User from './user.model.js';
 import { InviteCode } from './InviteCode.model.js';
 import Course from '../courses/course.model.js';
@@ -7,7 +7,7 @@ import Course from '../courses/course.model.js';
 const router = express.Router();
 
 
-router.use(auth(), requireAdmin);
+router.use(auth());
 
 router.get('/dashboard', async (req, res) => {
   try {

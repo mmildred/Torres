@@ -1,0 +1,11 @@
+@'
+# Dependencias y caches
+node_modules/
+frontend/node_modules/
+**/.vite/
+dist/
+build/
+coverage/
+*.log
+.env
+'@ | Out-File -Encoding utf8 .gitignore
