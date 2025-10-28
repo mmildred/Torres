@@ -1,12 +1,13 @@
+// src/modules/<TU_MODULO>/routes.js  (el archivo que pegaste)
 import { Router } from 'express';
 import Course from '../courses/course.model.js';
 import Progress from '../progress/progress.model.js';
-import { requireAuth } from '../../middleware/auth.js';
+import { auth } from '../../middleware/auth.js'; // ⬅️ reemplazo
 
 const r = Router();
 const applied = new Set();
 
-r.post('/', requireAuth, async (req, res) => {
+r.post('/', auth, async (req, res) => { // ⬅️ reemplazo requireAuth -> auth
   const ops = Array.isArray(req.body?.ops) ? req.body.ops : [];
   const appliedRes = [];
   const errors = [];
@@ -19,7 +20,12 @@ r.post('/', requireAuth, async (req, res) => {
       }
       if (op.type === 'create-course') {
         const { tempId, title, description } = op.payload || {};
-        const course = await Course.create({ title, description, ownerId: req.user.id, contents: [] });
+        const course = await Course.create({
+          title,
+          description,
+          ownerId: req.user.id, // auth garantiza req.user
+          contents: []
+        });
         applied.add(op.opId);
         appliedRes.push({
           opId: op.opId,

@@ -4,8 +4,6 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { getUser, logout } from "./auth";
 import "./AppHeader.css";
 
-<<<<<<< HEAD
-=======
 function getSavedTheme() {
   return localStorage.getItem("theme") || "auto"; 
 }
@@ -26,27 +24,13 @@ function watchSystemTheme(onChange) {
   return () => mq.removeEventListener?.("change", handler);
 }
 
->>>>>>> 1c49479ceb12304ea937c03ed0c216b15b0593e1
 export default function App() {
   const navigate = useNavigate();
   const user = getUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-<<<<<<< HEAD
-  const [themeMode, setThemeMode] = useState(localStorage.getItem("theme") || "auto");
-  const applyTheme = (mode) => {
-    const root = document.documentElement;
-    let finalMode = mode;
-    if (mode === "auto") {
-      finalMode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    root.setAttribute("data-theme", finalMode);
-    localStorage.setItem("theme", mode);
-  };
-=======
   const [themeMode, setThemeMode] = useState(getSavedTheme()); 
->>>>>>> 1c49479ceb12304ea937c03ed0c216b15b0593e1
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -58,10 +42,6 @@ export default function App() {
     }
   }, [themeMode]);
 
-<<<<<<< HEAD
-=======
-  
->>>>>>> 1c49479ceb12304ea937c03ed0c216b15b0593e1
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
@@ -98,20 +78,6 @@ export default function App() {
                   <NavLink to="/register" className="nav-link register-link">Registro</NavLink>
                 </>
               )}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label htmlFor="theme" style={{ fontSize: 12, color: "var(--text-light)" }}>Tema</label>
-              <select
-                id="theme"
-                value={themeMode}
-                onChange={(e) => setThemeMode(e.target.value)}
-                style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", appearance: "none" }}
-              >
-                <option value="light">Claro</option>
-                <option value="dark">Oscuro</option>
-                <option value="auto">Automático</option>
-              </select>
             </div>
 
             {user && (

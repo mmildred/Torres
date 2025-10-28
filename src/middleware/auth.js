@@ -1,25 +1,39 @@
-// src/middlewares/auth.js
-import jwt from "jsonwebtoken";
-const JWT_SECRET = process.env.JWT_SECRET || "secret123";
+import jwt from 'jsonwebtoken';
+import User from '../modules/auth/user.model.js';
 
-export const requireAuth = (req, res, next) => {
-  const h = req.header("Authorization");
-  if (!h?.startsWith("Bearer ")) return res.status(401).json({ error: "No autenticado" });
-  try {
-    const token = h.slice(7);
-    const p = jwt.verify(token, JWT_SECRET);
-    req.user = { id: p.id, name: p.name, role: p.role };
-    next();
-  } catch {
-    return res.status(401).json({ error: "Token inválido" });
+export function auth(requiredRole) {
+  return async (req, res, next) => {
+    try {
+      const token = req.header('Authorization')?.replace('Bearer ', '');
+      
+      if (!token) {
+        return res.status(401).json({ message: 'Token requerido' });
+      }
+      
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('-password');
+      
+      if (!user) {
+        return res.status(401).json({ message: 'Token inválido' });
+      }
+      
+      if (requiredRole && user.role !== requiredRole) {
+        return res.status(403).json({ 
+          message: `Acceso denegado. Se requiere rol: ${requiredRole}` 
+        });
+      }
+      
+      req.user = user;
+      next();
+    } catch (error) {
+      res.status(401).json({ message: 'Token inválido' });
+    }
+  };
+}
+
+export function requireAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Se requieren permisos de administrador' });
   }
-};
-
-export const allowRoles = (...roles) => (req, res, next) => {
-  if (!req.user) return res.status(401).json({ error: "No autenticado" });
-  if (!roles.includes(req.user.role)) return res.status(403).json({ error: "Permisos insuficientes" });
   next();
-};
-
-// 🔽 Alias para compatibilidad con código antiguo:
-export const auth = (...args) => requireAuth(...args);
+}
