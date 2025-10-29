@@ -119,8 +119,6 @@ export default function Courses() {
     });
   };
 
-  // REMOVED: if (!user) { return null; }
-
   return (
     <div className="courses-container">
       <div className="courses-header">
@@ -205,12 +203,15 @@ export default function Courses() {
                   <h3 className="course-title">{course.title}</h3>
                   
                   <div className="course-meta">
-                    <div className="meta-item">
-                      <span className="meta-icon">👤</span>
-                      <span className="meta-text instructor">
-                        {course.owner?.name || course.instructor || "Administrador"}
-                      </span>
-                    </div>
+                    {/* SOLO MOSTRAR INSTRUCTOR SI ESTÁ LOGUEADO */}
+                    {user && (
+                      <div className="meta-item">
+                        <span className="meta-icon">👤</span>
+                        <span className="meta-text instructor">
+                          {course.owner?.name || course.instructor || "Administrador"}
+                        </span>
+                      </div>
+                    )}
                     <div className="meta-item">
                       <span className="meta-icon">⏱️</span>
                       <span className="meta-text">
@@ -252,13 +253,16 @@ export default function Courses() {
 
                   {/* Acciones */}
                   <div className="course-actions">
-                    <button 
-                      className="btn btn-secondary"
-                      onClick={() => handleViewDetails(course._id)}
-                    >
-                      <span className="btn-icon">👁️</span>
-                      Ver detalles
-                    </button>
+                    {/* SOLO MOSTRAR "VER DETALLES" SI ESTÁ LOGUEADO */}
+                    {user && (
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={() => handleViewDetails(course._id)}
+                      >
+                        <span className="btn-icon">👁️</span>
+                        Ver detalles
+                      </button>
+                    )}
 
                     <button 
                       className="btn btn-primary"
