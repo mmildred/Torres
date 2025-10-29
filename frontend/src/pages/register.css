@@ -254,6 +254,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 1rem;
+  position: relative;
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -271,6 +272,25 @@
 .submit-btn.loading {
   opacity: 0.8;
   cursor: wait;
+}
+
+.submit-btn.loading::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 50%;
+  left: 50%;
+  margin-left: -10px;
+  margin-top: -10px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Form Footer */
@@ -336,12 +356,30 @@
   border-radius: 10px;
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .error-alert {
   background: #ffebee;
   color: #c62828;
   border: 1px solid #ffcdd2;
+}
+
+.success-alert {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
 }
 
 /* Features Section */
@@ -389,7 +427,168 @@
   line-height: 1.5;
 }
 
-/* Responsive */
+/* ===== NUEVOS ESTILOS PARA REGISTRO CON INVITACIÓN ===== */
+
+/* Badges para diferentes roles */
+.admin-badge {
+  background: linear-gradient(135deg, #5e69bd 0%, #144eb2 100%);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border: 2px solid #769ef0;
+  animation: pulse 2s infinite;
+}
+
+.teacher-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border: 2px solid #764ba2;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Estados de botón deshabilitado */
+.btn-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  background: var(--text-light) !important;
+}
+
+.btn-disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  background: var(--text-light) !important;
+}
+
+/* Verificación de código */
+.code-verification {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 0.5rem;
+}
+
+.code-verification.verifying {
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.code-verification.valid {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.code-verification.invalid {
+  color: #c62828;
+  font-weight: 500;
+}
+
+/* Mejoras visuales para el formulario con invitación */
+.register-form-card.with-invite {
+  border: 2px solid;
+  border-image: linear-gradient(135deg, #667eea, #764ba2) 1;
+}
+
+.register-form-card.with-admin-invite {
+  border: 2px solid;
+  border-image: linear-gradient(135deg, #ff6b6b, #ee5a24) 1;
+}
+
+/* Títulos personalizados para roles */
+.role-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.role-title.admin {
+  background: linear-gradient(135deg, #9a6bff 0%, #ee5a24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.role-title.teacher {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Descripción personalizada para roles */
+.role-description {
+  text-align: center;
+  color: var(--text-light);
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+/* Estados de hover mejorados para badges */
+.admin-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(97, 123, 218, 0.3);
+  transition: all 0.3s ease;
+}
+
+.teacher-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: all 0.3s ease;
+}
+
+/* Indicador visual de código válido/inválido */
+.invite-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.invite-status.valid {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.invite-status.invalid {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.invite-status.verifying {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+/* ===== RESPONSIVE ===== */
+
 @media (max-width: 968px) {
   .register-hero-content {
     grid-template-columns: 1fr;
@@ -439,6 +638,27 @@
   .features-grid {
     grid-template-columns: 1fr;
   }
+  
+  /* Responsive para nuevos elementos */
+  .admin-badge,
+  .teacher-badge {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .role-title {
+    font-size: 1.5rem;
+  }
+  
+  .role-description {
+    font-size: 1rem;
+  }
+  
+  .success-alert,
+  .error-alert {
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -453,5 +673,24 @@
   .submit-btn {
     padding: 1rem 1.5rem;
     font-size: 1rem;
+  }
+  
+  /* Responsive para badges */
+  .admin-badge,
+  .teacher-badge {
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: center;
+  }
+  
+  .badge-icon {
+    font-size: 1.2rem;
+  }
+  
+  .submit-btn.loading::after {
+    width: 16px;
+    height: 16px;
+    margin-left: -8px;
+    margin-top: -8px;
   }
 }

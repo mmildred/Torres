@@ -9,9 +9,11 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [inviteRole, setInviteRole] = useState(""); // ✅ NUEVO: Para detectar el rol
   const [msg, setMsg] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false); // ✅ NUEVO: Para verificar código
   const [passwordStrength, setPasswordStrength] = useState({
     hasMinLength: false,
     hasUpperCase: false,
@@ -20,13 +22,34 @@ export default function Register() {
   });
   const [searchParams] = useSearchParams();
 
-  // ✅ Detectar código de invitación desde la URL
+  // ✅ Detectar y verificar código de invitación desde la URL
   useEffect(() => {
     const code = searchParams.get('inviteCode');
     if (code) {
       setInviteCode(code);
+      verifyInviteCode(code);
     }
   }, [searchParams]);
+
+  // ✅ NUEVA FUNCIÓN: Verificar el código de invitación
+  const verifyInviteCode = async (code) => {
+    setVerifyingCode(true);
+    try {
+      const response = await api.get(`/auth/invite-codes/verify/${code}`);
+      if (response.data.valid) {
+        setInviteRole(response.data.role); // 'teacher' o 'admin'
+        setMsg(`✅ Código válido para ${response.data.role === 'admin' ? 'administrador' : 'profesor'}`);
+      } else {
+        setMsg(`❌ ${response.data.message}`);
+        setInviteCode(""); // Limpiar código inválido
+      }
+    } catch (error) {
+      setMsg("❌ Error verificando código de invitación");
+      setInviteCode(""); // Limpiar código en caso de error
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
 
   // ✅ Validar contraseña en tiempo real
   useEffect(() => {
@@ -71,6 +94,12 @@ export default function Register() {
       return;
     }
 
+    // ✅ Validar que el código sigue siendo válido
+    if (inviteCode && !inviteRole) {
+      setMsg("Por favor verifica que el código de invitación sea válido.");
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -85,7 +114,20 @@ export default function Register() {
 
       const res = await api.post(endpoint, payload);
       saveAuth(res.data.token, res.data.user);
-      location.href = "/courses";
+      
+      // ✅ Mensaje personalizado según el rol
+      const roleMessage = inviteRole === 'admin' 
+        ? "¡Bienvenido/a Administrador/a!" 
+        : inviteRole === 'teacher' 
+          ? "¡Bienvenido/a Profesor/a!" 
+          : "¡Bienvenido/a!";
+      
+      setMsg(`${roleMessage} Redirigiendo...`);
+      
+      setTimeout(() => {
+        location.href = "/courses";
+      }, 1500);
+      
     } catch (err) {
       setMsg(err?.response?.data?.message || "Error de registro");
     } finally {
@@ -96,6 +138,34 @@ export default function Register() {
   const h = new Date().getHours();
   const saludo = h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches";
 
+  // ✅ Determinar el título y mensaje según el rol
+  const getRoleInfo = () => {
+    if (inviteRole === 'admin') {
+      return {
+        title: "Únete como Administrador",
+        description: "Completa tu registro como administrador con el código de invitación.",
+        badgeText: " Registro de Administrador",
+        buttonText: "Registrarme como Administrador"
+      };
+    } else if (inviteRole === 'teacher') {
+      return {
+        title: "Únete como Profesor",
+        description: "Completa tu registro como profesor con el código de invitación.",
+        badgeText: " Registro de Profesor", 
+        buttonText: "Registrarme como Profesor"
+      };
+    } else {
+      return {
+        title: "Crea tu cuenta y aprende",
+        description: "Comienza tu journey de aprendizaje con acceso offline y seguimiento de progreso.",
+        badgeText: "",
+        buttonText: "Crear mi cuenta"
+      };
+    }
+  };
+
+  const roleInfo = getRoleInfo();
+
   return (
     <main className="register-page">
       {/* Hero Section */}
@@ -105,9 +175,9 @@ export default function Register() {
             <div className="register-hero-text">
               <p className="register-greeting">{saludo}</p>
               <h1 className="register-title">
-                {inviteCode ? (
+                {roleInfo.title.includes("Administrador") || roleInfo.title.includes("Profesor") ? (
                   <>
-                    Únete como <span className="text-gradient">Profesor</span>
+                    {roleInfo.title.split(" ")[0]} <span className="text-gradient">{roleInfo.title.split(" ").slice(1).join(" ")}</span>
                   </>
                 ) : (
                   <>
@@ -116,10 +186,7 @@ export default function Register() {
                 )}
               </h1>
               <p className="register-description">
-                {inviteCode 
-                  ? "Completa tu registro como profesor con el código de invitación."
-                  : "Comienza tu journey de aprendizaje con acceso offline y seguimiento de progreso."
-                }
+                {roleInfo.description}
               </p>
 
               {/* Stats Mini */}
@@ -143,7 +210,7 @@ export default function Register() {
             <div className="register-form-card">
               <div className="form-card-header">
                 <h2 className="form-card-title">
-                  {inviteCode ? "Registro de Profesor" : "Crear Cuenta"}
+                  {inviteCode ? roleInfo.badgeText : "Crear Cuenta"}
                 </h2>
                 <p className="form-card-subtitle">
                   {inviteCode 
@@ -152,18 +219,23 @@ export default function Register() {
                   }
                 </p>
                 
-                {/* ✅ Mostrar código de invitación si existe */}
+                {/* Mostrar código de invitación si existe */}
                 {inviteCode && (
-                  <div className="invite-badge">
-                    <span className="badge-icon">🔑</span>
-                    Código de invitación: {inviteCode}
+                  <div className={`invite-badge ${inviteRole === 'admin' ? 'admin-badge' : 'teacher-badge'}`}>
+                    <span className="badge-icon">
+                      {inviteRole === 'admin' ? '👑' : '👨‍🏫'}
+                    </span>
+                    Código: {inviteCode}
+                    {verifyingCode && " (Verificando...)"}
                   </div>
                 )}
               </div>
 
               {msg && (
-                <div className="alert error-alert">
-                  <span className="alert-icon">⚠️</span>
+                <div className={`alert ${msg.includes('✅') ? 'success-alert' : 'error-alert'}`}>
+                  <span className="alert-icon">
+                    {msg.includes('✅') ? '' : '⚠️'}
+                  </span>
                   {msg}
                 </div>
               )}
@@ -200,7 +272,7 @@ export default function Register() {
                     required
                   />
                   <div className="input-hint">
-                    Ejemplo: usuario@gmail.com, usuario@outlook.com
+                    Ejemplo: usuario@gmail.com
                   </div>
                 </div>
 
@@ -254,12 +326,15 @@ export default function Register() {
 
                 <button 
                   type="submit" 
-                  className={`submit-btn ${loading ? 'loading' : ''} ${!passwordStrength.isValid ? 'btn-disabled' : ''}`}
-                  disabled={loading || !passwordStrength.isValid}
+                  className={`submit-btn ${loading ? 'loading' : ''} ${(!passwordStrength.isValid || (inviteCode && !inviteRole)) ? 'btn-disabled' : ''}`}
+                  disabled={loading || !passwordStrength.isValid || (inviteCode && !inviteRole)}
                 >
                   {loading 
-                    ? (inviteCode ? "Registrando profesor..." : "Creando cuenta...") 
-                    : (inviteCode ? "Registrarme como Profesor" : "Crear mi cuenta")
+                    ? (inviteCode 
+                        ? `Registrando ${inviteRole === 'admin' ? 'administrador' : 'profesor'}...` 
+                        : "Creando cuenta..."
+                      ) 
+                    : roleInfo.buttonText
                   }
                 </button>
 

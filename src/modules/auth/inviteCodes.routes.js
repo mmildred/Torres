@@ -6,11 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 const router = express.Router();
 
 router.use((req, res, next) => {
-  console.log('🛂 [ROUTE DEBUG] Llegó a invite-codes routes:', req.method, req.url);
-  console.log('🛂 [ROUTE DEBUG] Headers:', JSON.stringify(req.headers));
   return auth()(req, res, (err) => {
     if (err) {
-      console.log('🛂 [ROUTE DEBUG] Error en auth:', err);
       return next(err);
     }
     console.log('🛂 [ROUTE DEBUG] Auth completado, usuario:', req.user?.email);
@@ -18,14 +15,22 @@ router.use((req, res, next) => {
   });
 });
 
+// ✅ CORREGIR: Usar el role del body en lugar de 'teacher' fijo
 router.post('/generate', async (req, res) => {
   try {
-    const { expiresInDays = 7 } = req.body;
+    const { expiresInDays = 7, role = 'teacher' } = req.body;
+    
+    if (role === 'admin' && req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        message: 'Solo los administradores pueden generar códigos de administrador' 
+      });
+    }
+
     const code = uuidv4().substring(0, 8).toUpperCase();
     
     const inviteCode = new InviteCode({
       code,
-      role: 'teacher',
+      role: role, // ✅ CAMBIAR: usar la variable role, no 'teacher' fijo
       createdBy: req.user.id,
       expiresAt: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
     });
@@ -36,7 +41,7 @@ router.post('/generate', async (req, res) => {
       message: 'Código generado exitosamente',
       code, 
       expiresAt: inviteCode.expiresAt,
-      role: 'teacher'
+      role: role // ✅ CAMBIAR: usar la variable role
     });
     
   } catch (error) {
@@ -45,7 +50,41 @@ router.post('/generate', async (req, res) => {
   }
 });
 
+router.post('/generate-admin', async (req, res) => {
+  try {
+    const { expiresInDays = 7 } = req.body;
+    
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        message: 'No tienes permisos para generar códigos de administrador' 
+      });
+    }
 
+    const code = uuidv4().substring(0, 8).toUpperCase();
+    
+    const inviteCode = new InviteCode({
+      code,
+      role: 'admin',
+      createdBy: req.user.id,
+      expiresAt: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+    });
+
+    await inviteCode.save();
+    
+    res.json({ 
+      message: 'Código de administrador generado exitosamente',
+      code, 
+      expiresAt: inviteCode.expiresAt,
+      role: 'admin'
+    });
+    
+  } catch (error) {
+    console.error('Error generando código de admin:', error);
+    res.status(500).json({ message: 'Error generando código de admin: ' + error.message });
+  }
+});
+
+// ... el resto del código se mantiene igual
 router.get('/verify/:code', async (req, res) => {
   try {
     const inviteCode = await InviteCode.findOne({ 
@@ -102,7 +141,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-
 router.get('/stats', async (req, res) => {
   try {
     const totalCodes = await InviteCode.countDocuments();
@@ -132,21 +170,18 @@ router.delete('/:codeId', auth(), async (req, res) => {
   try {
     const { codeId } = req.params;
     
-    // Verificar que el código existe
     const inviteCode = await InviteCode.findById(codeId);
     
     if (!inviteCode) {
       return res.status(404).json({ message: 'Código de invitación no encontrado' });
     }
 
-    // Solo permitir eliminar códigos no utilizados
     if (inviteCode.used) {
       return res.status(400).json({ 
         message: 'No se puede eliminar un código que ya ha sido utilizado' 
       });
     }
 
-    // Eliminar el código
     await InviteCode.findByIdAndDelete(codeId);
 
     res.json({ 
@@ -159,6 +194,5 @@ router.delete('/:codeId', auth(), async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
-
 
 export default router;

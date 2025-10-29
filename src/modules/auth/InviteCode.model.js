@@ -10,7 +10,8 @@ const inviteCodeSchema = new mongoose.Schema({
   role: {
     type: String,
     required: true,
-    enum: ['teacher']
+    enum: ['teacher', 'admin'], // ✅ AGREGAR 'admin' AL ENUM
+    default: 'teacher'
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

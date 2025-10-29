@@ -630,7 +630,124 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Responsive */
+/* Estilos para los botones de eliminar */
+.btn-delete {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  color: #ef4444;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #fef2f2;
+  transform: scale(1.1);
+}
+
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cannot-delete {
+  padding: 0.5rem;
+  opacity: 0.5;
+  cursor: not-allowed;
+  font-size: 0.9rem;
+}
+
+/* Asegurar que los botones de acción estén alineados */
+.code-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-copy {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  color: #3b82f6;
+}
+
+.btn-copy:hover {
+  background: #dbeafe;
+  transform: scale(1.1);
+}
+
+/* ===== NUEVOS ESTILOS PARA ADMIN Y PROFESOR ===== */
+
+/* Estilos para los botones de invitación */
+.invite-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.btn-admin {
+  background: linear-gradient(135deg, #000000 0%, #383838 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-admin:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(65, 65, 64, 0.4);
+}
+
+.btn-admin:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Estilos para mostrar el rol en los códigos */
+.code-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.code-role {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.role-teacher {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.role-admin {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+/* Estilos para los roles de usuario en la lista */
+.user-role.admin {
+  background: #ffebee;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+}
+
+/* ===== RESPONSIVE ===== */
+
 @media (max-width: 968px) {
   .admin-hero-content {
     grid-template-columns: 1fr;
@@ -656,6 +773,15 @@
   
   .admin-hero-visual {
     height: 300px;
+  }
+
+  /* Responsive para botones de invitación */
+  .invite-buttons {
+    flex-direction: column;
+  }
+  
+  .btn-admin, .btn-primary {
+    width: 100%;
   }
 }
 
@@ -720,57 +846,14 @@
     right: 1rem;
     left: 1rem;
   }
-}
 
-/* Estilos para los botones de eliminar */
-.btn-delete {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-  color: #ef4444;
-}
-
-.btn-delete:hover:not(:disabled) {
-  background: #fef2f2;
-  transform: scale(1.1);
-}
-
-.btn-delete:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.cannot-delete {
-  padding: 0.5rem;
-  opacity: 0.5;
-  cursor: not-allowed;
-  font-size: 0.9rem;
-}
-
-/* Asegurar que los botones de acción estén alineados */
-.code-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.btn-copy {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-  color: #3b82f6;
-}
-
-.btn-copy:hover {
-  background: #dbeafe;
-  transform: scale(1.1);
+  /* Ajustes móviles para botones de invitación */
+  .invite-buttons {
+    gap: 8px;
+  }
+  
+  .btn-admin, .btn-primary {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
 }

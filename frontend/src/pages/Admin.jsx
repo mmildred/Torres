@@ -10,7 +10,8 @@ export default function Admin() {
   const [inviteCodes, setInviteCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState({}); // ✅ AGREGAR ESTA LÍNEA
+  const [generatingAdmin, setGeneratingAdmin] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
 
@@ -91,11 +92,46 @@ export default function Admin() {
     }
   };
 
-  const generateInviteCode = async () => {
+  // ✅ FUNCIÓN PARA GENERAR CÓDIGO DE PROFESOR
+  const generateTeacherInviteCode = async () => {
     setGenerating(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:4000/auth/invite-codes/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          expiresInDays: 7,
+          role: 'teacher'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        const inviteLink = `${window.location.origin}/register?inviteCode=${data.code}`;
+        await navigator.clipboard.writeText(inviteLink);
+        showSnackbar(`¡Link de PROFESOR copiado! Código: ${data.code}`, 'success');
+        loadAllData();
+      } else {
+        showSnackbar(data.message, 'error');
+      }
+    } catch (error) {
+      showSnackbar('Error generando código de profesor', 'error');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // ✅ NUEVA FUNCIÓN PARA GENERAR CÓDIGO DE ADMINISTRADOR
+  const generateAdminInviteCode = async () => {
+    setGeneratingAdmin(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:4000/auth/invite-codes/generate-admin', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -109,19 +145,18 @@ export default function Admin() {
       if (response.ok) {
         const inviteLink = `${window.location.origin}/register?inviteCode=${data.code}`;
         await navigator.clipboard.writeText(inviteLink);
-        showSnackbar(`¡Link copiado! Código: ${data.code}`, 'success');
+        showSnackbar(`¡Link de ADMINISTRADOR copiado! Código: ${data.code}`, 'success');
         loadAllData();
       } else {
         showSnackbar(data.message, 'error');
       }
     } catch (error) {
-      showSnackbar('Error generando código', 'error');
+      showSnackbar('Error generando código de administrador', 'error');
     } finally {
-      setGenerating(false);
+      setGeneratingAdmin(false);
     }
   };
 
-  // ✅ AGREGAR ESTA FUNCIÓN PARA ELIMINAR CÓDIGOS
   const deleteInviteCode = async (codeId) => {
     if (!window.confirm('¿Estás seguro de que quieres eliminar este código de invitación?')) {
       return;
@@ -132,31 +167,31 @@ export default function Admin() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:4000/auth/invite-codes/${codeId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('🔄 Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('📝 Response data:', data);
+
+      if (response.ok) {
+        showSnackbar('Código eliminado correctamente', 'success');
+        loadAllData(); 
+      } else {
+        showSnackbar(data.message || 'Error eliminando código', 'error');
       }
-    });
-
-    console.log('🔄 Response status:', response.status);
-    
-    const data = await response.json();
-    console.log('📝 Response data:', data);
-
-    if (response.ok) {
-      showSnackbar('Código eliminado correctamente', 'success');
-      loadAllData(); // Recargar la lista
-    } else {
-      showSnackbar(data.message || 'Error eliminando código', 'error');
+    } catch (error) {
+      console.error('❌ Error en deleteInviteCode:', error);
+      showSnackbar('Error de conexión: ' + error.message, 'error');
+    } finally {
+      setDeleteLoading(prev => ({ ...prev, [codeId]: false }));
     }
-  } catch (error) {
-    console.error('❌ Error en deleteInviteCode:', error);
-    showSnackbar('Error de conexión: ' + error.message, 'error');
-  } finally {
-    setDeleteLoading(prev => ({ ...prev, [codeId]: false }));
-  }
-};
+  };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -228,23 +263,11 @@ export default function Admin() {
                 Panel de <span className="text-gradient">Administración</span>
               </h1>
               <p className="admin-description">
-                Gestiona usuarios, genera códigos de invitación para profesores 
+                Gestiona usuarios, genera códigos de invitación para profesores y administradores, 
                 y supervisa el progreso de la plataforma.
               </p>
+        </div>
               
-              <div className="admin-actions">
-                <button 
-                  onClick={generateInviteCode}
-                  className={`btn btn-primary ${generating ? 'btn-loading' : ''}`}
-                  disabled={generating}
-                >
-                  {generating ? 'Generando...' : 'Nueva Invitación'}
-                </button>
-                <button onClick={loadAllData} className="btn btn-secondary">
-                  Actualizar Datos
-                </button>
-              </div>
-            </div>
 
             <div className="admin-hero-visual">
               <div className="admin-floating-card card-1">
@@ -326,7 +349,13 @@ export default function Admin() {
                   return (
                     <div key={code._id} className={`code-item ${status.class}`}>
                       <div className="code-info">
-                        <span className="code-text">{code.code}</span>
+                        <div className="code-header">
+                          <span className="code-text">{code.code}</span>
+                          {/* ✅ AGREGADO: Mostrar el tipo de rol */}
+                          <span className={`code-role role-${code.role}`}>
+                            {code.role === 'admin' ? '👑 Admin' : '👨‍🏫 Profesor'}
+                          </span>
+                        </div>
                         <span className="code-expiry">
                           {formatDate(code.expiresAt)}
                         </span>
@@ -344,7 +373,6 @@ export default function Admin() {
                             📋
                           </button>
                         )}
-                        {/* ✅ BOTÓN PARA ELIMINAR - Solo para códigos no utilizados */}
                         {!code.used && (
                           <button 
                             onClick={() => deleteInviteCode(code._id)}
@@ -355,7 +383,6 @@ export default function Admin() {
                             {deleteLoading[code._id] ? '⏳' : '🗑️'}
                           </button>
                         )}
-                        {/* Mensaje para códigos usados */}
                         {code.used && (
                           <span className="cannot-delete" title="No se puede eliminar un código utilizado">
                             🔒
@@ -386,8 +413,10 @@ export default function Admin() {
                       <span className="user-email">{user.email}</span>
                     </div>
                     <div className="user-meta">
+                      {/* ✅ ACTUALIZADO: Mostrar también administradores */}
                       <span className={`user-role ${user.role}`}>
-                        {user.role === 'teacher' ? '👨‍🏫 Profesor' : '🎓 Estudiante'}
+                        {user.role === 'admin' ? '👑 Admin' : 
+                         user.role === 'teacher' ? '👨‍🏫 Profesor' : '🎓 Estudiante'}
                       </span>
                       <span className="user-date">
                         {formatDate(user.createdAt)}
@@ -414,8 +443,17 @@ export default function Admin() {
               <div className="action-icon">👨‍🏫</div>
               <h3>Gestionar Profesores</h3>
               <p>Genera códigos de invitación y gestiona el acceso de profesores.</p>
-              <button onClick={generateInviteCode} className="btn btn-primary">
-                Generar Invitación
+              <button onClick={generateTeacherInviteCode} className="btn btn-primary">
+                Generar Invitación a Profesor
+              </button>
+            </div>
+
+            <div className="action-card">
+              <div className="action-icon">👑</div>
+              <h3>Gestionar Administradores</h3>
+              <p>Invita nuevos administradores para ayudar en la gestión de la plataforma.</p>
+              <button onClick={generateAdminInviteCode} className="btn btn-admin">
+                Generar Invitacion a Administrador
               </button>
             </div>
 
@@ -426,15 +464,6 @@ export default function Admin() {
               <button onClick={loadAllData} className="btn btn-secondary">
                 Actualizar Datos
               </button>
-            </div>
-
-            <div className="action-card">
-              <div className="action-icon">⚙️</div>
-              <h3>Configuración</h3>
-              <p>Configura los parámetros y opciones de tu plataforma.</p>
-              <Link to="/courses" className="btn btn-secondary">
-                Gestionar Cursos
-              </Link>
             </div>
           </div>
         </div>
