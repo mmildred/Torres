@@ -10,8 +10,33 @@ export default function Courses() {
   const [progressByCourse, setProgressByCourse] = useState({});
   const user = getUser();
   const navigate = useNavigate();
+  const [deletingById, setDeletingById] = useState({});
 
-  // Usar useCallback para memoizar la función
+  const handleDeleteCourse = async (courseId) => {
+    if (user?.role !== "admin") return;
+    const ok = window.confirm("¿Seguro que deseas borrar este curso? Esta acción no se puede deshacer.");
+    if (!ok) return;
+
+    try {
+      setDeletingById(prev => ({ ...prev, [courseId]: true }));
+      await api.delete(`/courses/${courseId}`);
+
+      setCourses(prev => prev.filter(c => c._id !== courseId));
+      setProgressByCourse(prev => {
+        const clone = { ...prev };
+        delete clone[courseId];
+        return clone;
+      });
+
+      alert("Curso eliminado correctamente.");
+    } catch (err) {
+      console.error("Error al eliminar curso:", err);
+      alert("No se pudo eliminar el curso.");
+    } finally {
+      setDeletingById(prev => ({ ...prev, [courseId]: false }));
+    }
+  };
+
   const fetchCourses = useCallback(async () => {
     try {
       const res = await api.get("/courses");
@@ -27,17 +52,14 @@ export default function Courses() {
     }
   }, []);
 
-  // Efecto para cargar los cursos iniciales
   useEffect(() => {
     if (!hasFetched) {
       fetchCourses();
     }
   }, [hasFetched, fetchCourses]);
 
-  // Efecto para cargar el progreso de cada curso
   useEffect(() => {
-    // Sólo corre si ya se cargaron los cursos
-    if (!hasFetched || !courses.length) return;
+    if (!user || !hasFetched || !courses.length) return;
 
     let cancelled = false;
     (async () => {
@@ -46,7 +68,7 @@ export default function Courses() {
           courses.map(async (c) => {
             try {
               const { data } = await api.get(`/courses/${c._id}/progress/me`);
-              return [c._id, data]; // { total, completed, percent }
+              return [c._id, data];
             } catch {
               return [c._id, { total: 0, completed: 0, percent: 0 }];
             }
@@ -61,7 +83,7 @@ export default function Courses() {
     })();
 
     return () => { cancelled = true; };
-  }, [hasFetched, courses]);
+  }, [user, hasFetched, courses]);
 
   const handleViewDetails = (courseId) => {
     navigate(`/courses/${courseId}`);
@@ -69,14 +91,18 @@ export default function Courses() {
 
   const handleEnroll = async (courseId) => {
     if (!user) {
-      navigate("/login");
+      navigate("/login", { 
+        state: { 
+          message: "Necesitas una cuenta para inscribirte en este curso",
+          redirectTo: `/courses/${courseId}`
+        } 
+      });
       return;
     }
 
     try {
       await api.post(`/courses/${courseId}/enroll`);
       alert("Te has inscrito exitosamente al curso");
-      // Recargar el progreso después de inscribirse
       fetchCourses();
     } catch (err) {
       console.error("Error al inscribirse:", err);
@@ -84,9 +110,16 @@ export default function Courses() {
     }
   };
 
-  if (!user) {
-    return null;
-  }
+  const handleQuickRegister = () => {
+    navigate("/register", {
+      state: {
+        message: "Crea tu cuenta para empezar a aprender hoy mismo",
+        quickRegister: true
+      }
+    });
+  };
+
+  // REMOVED: if (!user) { return null; }
 
   return (
     <div className="courses-container">
@@ -96,15 +129,40 @@ export default function Courses() {
           Explora nuestra selección de cursos especializados
         </p>  
         
-        {/* BOTÓN DE CREAR CURSO - CORREGIDO */}
-        {(user?.role === "teacher" || user?.role === "admin") && (
+        {/* Solo mostrar botón de crear curso si está logueado y es teacher/admin */}
+        {user && (user?.role === "teacher" || user?.role === "admin") && (
           <button
             className="create-btn"
             onClick={() => navigate("/courses/new")}
             title="Crear un nuevo curso"
           >
-            + Crear curso
+            <span className="btn-icon">+</span>
+            Crear curso
           </button>
+        )}
+
+        {/* Banner para usuarios no logueados */}
+        {!user && (
+          <div className="guest-banner">
+            <div className="guest-banner-content">
+              <h3>¿Listo para empezar a aprender?</h3>
+              <p>Únete a nuestra plataforma y accede a todos los cursos</p>
+              <div className="guest-actions">
+                <button 
+                  onClick={handleQuickRegister}
+                  className="guest-btn primary"
+                >
+                  Crear Cuenta Gratis
+                </button>
+                <button 
+                  onClick={() => navigate("/login")}
+                  className="guest-btn secondary"
+                >
+                  Iniciar Sesión
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -120,6 +178,7 @@ export default function Courses() {
             const prog = progressByCourse[course._id] || { total: 0, completed: 0, percent: 0 };
             return (
               <div key={course._id} className="course-card">
+                {/* Header de la card con imagen y categoría */}
                 <div className="course-image">
                   <img
                     src={
@@ -134,20 +193,26 @@ export default function Courses() {
                   <div className="course-category">
                     {course.category || "General"}
                   </div>
+                  <div className="course-level-tag">
+                    <span className={`level-badge ${course.level?.toLowerCase() || 'beginner'}`}>
+                      {course.level || "Principiante"}
+                    </span>
+                  </div>
                 </div>
                 
-                <div className="course-info">
+                {/* Contenido de la card */}
+                <div className="course-content">
                   <h3 className="course-title">{course.title}</h3>
                   
                   <div className="course-meta">
                     <div className="meta-item">
-                      <span className="meta-label">Creado por:</span>
+                      <span className="meta-icon">👤</span>
                       <span className="meta-text instructor">
                         {course.owner?.name || course.instructor || "Administrador"}
                       </span>
                     </div>
                     <div className="meta-item">
-                      <span className="meta-label">Duración:</span>
+                      <span className="meta-icon">⏱️</span>
                       <span className="meta-text">
                         {course.duration || "Auto-guiado"}
                       </span>
@@ -155,47 +220,71 @@ export default function Courses() {
                   </div>
 
                   <p className="course-description">
-                    {course.description?.slice(0, 100) || "Sin descripción disponible..."}
-                    {course.description && course.description.length > 100 ? "..." : ""}
+                    {course.description?.slice(0, 120) || "Sin descripción disponible..."}
+                    {course.description && course.description.length > 120 ? "..." : ""}
                   </p>
 
-                  <div className="course-footer">
-                    <div className="course-level">
-                      <span className={`level-badge ${course.level?.toLowerCase() || 'beginner'}`}>
-                        {course.level || "Principiante"}
-                      </span>
-                    </div>
-                    
-                    <div className="course-actions">
-                      <button 
-                        className="details-btn"
-                        onClick={() => handleViewDetails(course._id)}
-                      >
-                        Ver detalles
-                      </button>
-                      <button 
-                        className="enroll-btn"
-                        onClick={() => handleEnroll(course._id)}
-                      >
-                        Inscribirse
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Mostrar progreso si existe */}
-                  {prog.percent > 0 && (
+                  {/* Progreso - solo para usuarios logueados */}
+                  {user && prog.percent > 0 && (
                     <div className="progress-container">
+                      <div className="progress-header">
+                        <span className="progress-label">Tu progreso</span>
+                        <span className="progress-percent">{prog.percent}%</span>
+                      </div>
                       <div className="progress-bar">
                         <div 
                           className="progress-fill" 
                           style={{ width: `${prog.percent}%` }}
                         ></div>
                       </div>
-                      <span className="progress-text">
-                        {prog.completed}/{prog.total} completado ({prog.percent}%)
-                      </span>
+                      <div className="progress-stats">
+                        {prog.completed}/{prog.total} lecciones completadas
+                      </div>
                     </div>
                   )}
+
+                  {/* Mensaje para usuarios no logueados */}
+                  {!user && (
+                    <div className="guest-prompt">
+                      <p>Inicia sesión para acceder a este curso</p>
+                    </div>
+                  )}
+
+                  {/* Acciones */}
+                  <div className="course-actions">
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={() => handleViewDetails(course._id)}
+                    >
+                      <span className="btn-icon">👁️</span>
+                      Ver detalles
+                    </button>
+
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => handleEnroll(course._id)}
+                    >
+                      <span className="btn-icon">
+                        {user ? "🎯" : "🔒"}
+                      </span>
+                      {user ? "Inscribirse" : "Acceder al Curso"}
+                    </button>
+
+                    {/* Botón de eliminar solo para admin logueado */}
+                    {user?.role === "admin" && (
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDeleteCourse(course._id)}
+                        disabled={!!deletingById[course._id]}
+                        title="Borrar curso"
+                      >
+                        <span className="btn-icon">
+                          {deletingById[course._id] ? "⏳" : "🗑️"}
+                        </span>
+                        {deletingById[course._id] ? "Eliminando..." : "Eliminar"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

@@ -85,4 +85,25 @@ router.get('/courses', async (req, res) => {
   }
 });
 
+// ✅ NUEVA RUTA PARA ELIMINAR CURSOS
+router.delete('/courses/:courseId', async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    
+    // Verificar que el curso existe
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Curso no encontrado' });
+    }
+
+    // Eliminar el curso
+    await Course.findByIdAndDelete(courseId);
+    
+    res.json({ message: 'Curso eliminado correctamente' });
+  } catch (error) {
+    console.error('Error deleting course:', error);
+    res.status(500).json({ message: 'Error eliminando curso' });
+  }
+});
+
 export default router;

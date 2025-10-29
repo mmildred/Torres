@@ -1,4 +1,4 @@
-// Lee el tema guardado o usa "auto"
+/* Lee el tema guardado o usa "auto"
 export function getSavedTheme() {
   return localStorage.getItem('theme') || 'auto'; // 'light' | 'dark' | 'auto'
 }
@@ -24,4 +24,4 @@ export function watchSystemTheme(onChange) {
   const handler = () => onChange();
   mq.addEventListener?.('change', handler);
   return () => mq.removeEventListener?.('change', handler);
-}
+} */

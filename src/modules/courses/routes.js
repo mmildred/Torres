@@ -74,20 +74,57 @@ r.post('/', auth('teacher'), async (req, res) => {
   }
 });
 
-// Las demás rutas se mantienen igual...
+// Subida de contenidos del curso
 r.post('/upload/:id', auth('teacher'), upload.single('file'), async (req, res) => {
   const course = await Course.findById(req.params.id);
   if (!course) return res.status(404).json({ message: 'Curso no encontrado' });
   const f = req.file;
+  if (!f) return res.status(400).json({ message: 'Archivo requerido' });
   course.contents.push({ name: f.originalname, path: f.filename, size: f.size });
   await course.save();
   res.json({ ok: true });
 });
 
+// Manifest de contenidos
 r.get('/:id/manifest', async (req, res) => {
   const c = await Course.findById(req.params.id);
   if (!c) return res.status(404).json({ message: 'Not found' });
   res.json({ files: c.contents.map(x => ({ name: x.name, path: x.path, size: x.size ?? null })) });
 });
+
+// ====== NUEVO: handler local para borrar curso (solo admin) ======
+async function deleteById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const course = await Course.findById(id);
+    if (!course) return res.status(404).json({ message: 'Curso no encontrado' });
+
+    // Intentar borrar archivos físicos asociados (si los hubiera)
+    if (Array.isArray(course.contents)) {
+      for (const item of course.contents) {
+        const filePath = path.join(uploadDir, item.path || '');
+        // Evitar borrar fuera de uploads
+        if (filePath.startsWith(uploadDir)) {
+          try {
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          } catch {
+            // ignoramos errores de unlink para no bloquear el borrado del curso
+          }
+        }
+      }
+    }
+
+    await course.deleteOne();
+    return res.json({ message: 'Curso eliminado' });
+  } catch (err) {
+    console.error('Error eliminando curso:', err);
+    return res.status(500).json({ message: 'Error interno del servidor' });
+  }
+}
+
+r.delete('/:id', auth('admin'), deleteById);
 
 export default r;
