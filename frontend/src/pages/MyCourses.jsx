@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
-import { isAuthenticated } from "../auth"; // ✅ Importar la nueva función
+import { isAuthenticated, getUser } from "../auth";
 import "./MyCourses.css";
 
 export default function MyCourses() {
@@ -10,76 +10,74 @@ export default function MyCourses() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const navigate = useNavigate();
+  const user = getUser();
 
-  // ✅ useEffect simplificado y seguro
   useEffect(() => {
-    // Verificar autenticación inmediatamente
     if (!isAuthenticated()) {
       navigate("/login");
       return;
     }
 
-    // Función para cargar cursos
-    const loadCourses = async () => {
+    const loadMyCourses = async () => {
       try {
         setLoading(true);
         
-        // Obtener todos los cursos
-        const allCoursesRes = await api.get("/courses");
-        const allCourses = allCoursesRes.data;
-
-        // Obtener progreso de cada curso
-        const coursesWithProgress = await Promise.all(
-          allCourses.map(async (course) => {
-            try {
-              const progressRes = await api.get(`/courses/${course._id}/progress/me`);
-              return {
-                ...course,
-                progress: progressRes.data,
-                isEnrolled: progressRes.data.enrolled
-              };
-            } catch (error) {
-              // Si hay error 404, no está inscrito
-              return {
-                ...course,
-                progress: { 
-                  enrolled: false, 
-                  progress: 0, 
-                  completedContents: 0, 
-                  totalContents: course.contents?.length || 0 
-                },
-                isEnrolled: false
-              };
-            }
-          })
-        );
-
-        // Filtrar solo los cursos en los que está inscrito
-        const enrolledCourses = coursesWithProgress.filter(course => course.isEnrolled);
-        setCourses(enrolledCourses);
+        // ✅ OBTENER SOLO LOS CURSOS DEL USUARIO - NUEVA RUTA ESPECÍFICA
+        const myCoursesRes = await api.get("/courses/my-courses");
+        setCourses(myCoursesRes.data);
         
       } catch (error) {
         console.error("Error cargando mis cursos:", error);
-        if (error.response?.status === 401) {
-          navigate("/login");
+        
+        // ✅ FALLBACK: CARGAR TODOS LOS CURSOS Y FILTRAR LOCALMENTE
+        if (error.response?.status === 404) {
+          try {
+            console.log("Ruta /my-courses no existe, usando fallback...");
+            const allCoursesRes = await api.get("/courses");
+            const allCourses = allCoursesRes.data;
+            
+            // Obtener progreso solo para cursos inscritos
+            const coursesWithProgress = await Promise.all(
+              allCourses.map(async (course) => {
+                try {
+                  const progressRes = await api.get(`/courses/${course._id}/progress/me`);
+                  if (progressRes.data.enrolled) {
+                    return {
+                      ...course,
+                      progress: progressRes.data,
+                      isEnrolled: true
+                    };
+                  }
+                  return null;
+                } catch (error) {
+                  return null; // No está inscrito
+                }
+              })
+            );
+            
+            const enrolledCourses = coursesWithProgress.filter(course => course !== null);
+            setCourses(enrolledCourses);
+          } catch (fallbackError) {
+            console.error("Error en fallback:", fallbackError);
+          }
         }
       } finally {
         setLoading(false);
       }
     };
 
-    loadCourses();
-  }, [navigate]); // ✅ Solo depende de navigate
+    loadMyCourses();
+  }, [navigate]);
 
-  // ... el resto de tu componente permanece igual
+  // ... resto del componente igual
   const getFilteredCourses = () => {
     switch (filter) {
       case "in-progress":
         return courses.filter(course => 
-          course.progress.progress > 0 && course.progress.progress < 100
+          course.progress?.progress > 0 && course.progress?.progress < 100
         );
       case "completed":
-        return courses.filter(course => course.progress.progress === 100);
+        return courses.filter(course => course.progress?.progress === 100);
       default:
         return courses;
     }
@@ -110,7 +108,6 @@ export default function MyCourses() {
 
   return (
     <div className="my-courses">
-      {/* ... el resto de tu JSX */}
       <div className="my-courses-header">
         <h1>Mis Cursos</h1>
         <p>Gestiona y continúa tu aprendizaje</p>
@@ -122,13 +119,13 @@ export default function MyCourses() {
           </div>
           <div className="stat-card">
             <span className="stat-number">
-              {courses.filter(c => c.progress.progress > 0 && c.progress.progress < 100).length}
+              {courses.filter(c => c.progress?.progress > 0 && c.progress?.progress < 100).length}
             </span>
             <span className="stat-label">En Progreso</span>
           </div>
           <div className="stat-card">
             <span className="stat-number">
-              {courses.filter(c => c.progress.progress === 100).length}
+              {courses.filter(c => c.progress?.progress === 100).length}
             </span>
             <span className="stat-label">Completados</span>
           </div>
@@ -145,13 +142,13 @@ export default function MyCourses() {
             className={`filter-tab ${filter === "in-progress" ? "active" : ""}`}
             onClick={() => setFilter("in-progress")}
           >
-            En Progreso ({courses.filter(c => c.progress.progress > 0 && c.progress.progress < 100).length})
+            En Progreso ({courses.filter(c => c.progress?.progress > 0 && c.progress?.progress < 100).length})
           </button>
           <button 
             className={`filter-tab ${filter === "completed" ? "active" : ""}`}
             onClick={() => setFilter("completed")}
           >
-            Completados ({courses.filter(c => c.progress.progress === 100).length})
+            Completados ({courses.filter(c => c.progress?.progress === 100).length})
           </button>
         </div>
       </div>
@@ -199,7 +196,7 @@ export default function MyCourses() {
                   <div className="course-category">
                     {course.category || "General"}
                   </div>
-                  {course.progress.progress === 100 && (
+                  {course.progress?.progress === 100 && (
                     <div className="completed-badge">
                       ✅ Completado
                     </div>
@@ -226,16 +223,16 @@ export default function MyCourses() {
                   <div className="progress-section">
                     <div className="progress-header">
                       <span className="progress-label">Tu progreso</span>
-                      <span className="progress-percent">{course.progress.progress}%</span>
+                      <span className="progress-percent">{course.progress?.progress || 0}%</span>
                     </div>
                     <div className="progress-bar">
                       <div
                         className="progress-fill"
-                        style={{ width: `${course.progress.progress}%` }}
+                        style={{ width: `${course.progress?.progress || 0}%` }}
                       ></div>
                     </div>
                     <div className="progress-stats">
-                      {course.progress.completedContents} de {course.progress.totalContents} lecciones
+                      {course.progress?.completedContents || 0} de {course.progress?.totalContents || 0} lecciones
                     </div>
                   </div>
 
@@ -247,7 +244,7 @@ export default function MyCourses() {
                       Ver Detalles
                     </button>
                     
-                    {course.progress.progress === 100 ? (
+                    {course.progress?.progress === 100 ? (
                       <button
                         className="review-course-btn"
                         onClick={() => handleViewCourse(course._id)}
@@ -259,7 +256,7 @@ export default function MyCourses() {
                         className="continue-btn"
                         onClick={() => handleContinueLearning(course._id)}
                       >
-                        {course.progress.progress === 0 ? 'Comenzar' : 'Continuar'}
+                        {course.progress?.progress === 0 ? 'Comenzar' : 'Continuar'}
                       </button>
                     )}
                   </div>

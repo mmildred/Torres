@@ -1,3 +1,4 @@
+// Profile.jsx - VERSIÓN CORREGIDA (SIN ABORT CONTROLLER)
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUser } from '../auth';
@@ -45,13 +46,18 @@ export default function Profile() {
 
   const loadProfile = async () => {
     try {
+      setLoading(true);
+      setMessage('');
       const token = localStorage.getItem('token');
+      
+      // 🔴 ELIMINAR ABORT CONTROLLER TEMPORALMENTE
       const response = await fetch('http://localhost:4000/auth/profile/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
+        // 🔴 QUITAR signal: controller.signal
       });
-      
+
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
@@ -61,14 +67,43 @@ export default function Profile() {
           interests: userData.interests || [],
           specialties: userData.specialties || []
         });
+      } else if (response.status === 404) {
+        // ✅ FALLBACK A DATOS BÁSICOS
+        handleFallbackData();
+        setMessage('Perfil básico - Funcionalidad completa disponible pronto');
+      } else {
+        throw new Error(`Error ${response.status}`);
       }
     } catch (error) {
       console.error('Error cargando perfil:', error);
+      // ✅ EN CUALQUIER ERROR, USAR FALLBACK
+      handleFallbackData();
+      setMessage('Error cargando perfil. Usando información básica.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ FUNCIÓN DE FALLBACK REUTILIZABLE
+  const handleFallbackData = () => {
+    const currentUser = getUser();
+    if (currentUser) {
+      setUser(currentUser);
+      setFormData({
+        name: currentUser.name || '',
+        bio: currentUser.bio || '',
+        interests: currentUser.interests || [],
+        specialties: currentUser.specialties || []
+      });
     }
   };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    
+    // 🔴 EVITAR MÚLTIPLES ENVÍOS
+    if (loading) return;
+    
     setLoading(true);
     setMessage('');
 
@@ -83,39 +118,70 @@ export default function Profile() {
         body: JSON.stringify(formData)
       });
 
-      const data = await response.json();
-
       if (response.ok) {
+        const data = await response.json();
         setUser(data.user);
         setEditMode(false);
-        setMessage('Perfil actualizado correctamente');
+        setMessage('✅ Perfil actualizado correctamente');
         
-        const currentUser = getUser();
-        localStorage.setItem('user', JSON.stringify({
-          ...currentUser,
-          name: data.user.name
-        }));
+        // ✅ ACTUALIZAR LOCALSTORAGE
+        updateLocalStorage(data.user);
+      } else if (response.status === 404) {
+        // ✅ FALLBACK: ACTUALIZAR SOLO LOCALSTORAGE
+        updateLocalStorage({
+          ...user,
+          ...formData
+        });
+        setEditMode(false);
+        setMessage('✅ Perfil actualizado (cambios guardados localmente)');
       } else {
-        setMessage(data.message || 'Error actualizando perfil');
+        const errorData = await response.json();
+        setMessage(`❌ ${errorData.message || 'Error actualizando perfil'}`);
       }
     } catch (error) {
-      setMessage('Error de conexión');
+      console.error('Error actualizando perfil:', error);
+      setMessage('❌ Error de conexión. Los cambios se guardaron localmente.');
+      
+      // ✅ FALLBACK: GUARDAR LOCALMENTE EN CUALQUIER ERROR
+      updateLocalStorage({
+        ...user,
+        ...formData
+      });
+      setEditMode(false);
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ FUNCIÓN REUTILIZABLE PARA ACTUALIZAR LOCALSTORAGE
+  const updateLocalStorage = (userData) => {
+    const currentUser = getUser();
+    const updatedUser = {
+      ...currentUser,
+      name: userData.name,
+      bio: userData.bio,
+      interests: userData.interests,
+      specialties: userData.specialties,
+      avatar: userData.avatar
+    };
+    
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
   };
 
   const handleAvatarUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setMessage('Por favor selecciona una imagen válida');
+    // ✅ VALIDACIONES MÁS ESPECÍFICAS
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validImageTypes.includes(file.type)) {
+      setMessage('❌ Formato no válido. Use JPEG, PNG, GIF o WebP');
       return;
     }
 
-    if (file.size > 500 * 1024) { 
-      setMessage('La imagen debe ser menor a 500KB');
+    if (file.size > 500 * 1024) {
+      setMessage('❌ La imagen debe ser menor a 500KB');
       return;
     }
 
@@ -135,45 +201,37 @@ export default function Profile() {
         body: uploadFormData
       });
 
-      const data = await response.json();
-
       if (response.ok) {
-        setUser(prevUser => ({
-          ...prevUser,
-          avatar: data.user.avatar,
-          avatarTimestamp: Date.now()
-        }));
-        
-        setMessage('Foto de perfil actualizada correctamente');
-        
-        const currentUser = getUser();
-        localStorage.setItem('user', JSON.stringify({
-          ...currentUser,
-          avatar: data.user.avatar
-        }));
-        
-        setTimeout(() => {
-          loadProfile();
-        }, 1000);
-        
+        const data = await response.json();
+        updateLocalStorage(data.user);
+        setMessage('✅ Foto de perfil actualizada correctamente');
+      } else if (response.status === 404) {
+        setMessage('ℹ️ La función de avatar no está disponible aún');
       } else {
-        setMessage(data.message || 'Error subiendo imagen');
+        const errorData = await response.json();
+        setMessage(`❌ ${errorData.message || 'Error subiendo imagen'}`);
       }
     } catch (error) {
-      setMessage('Error subiendo imagen');
+      console.error('Error subiendo imagen:', error);
+      setMessage('❌ Error de conexión al subir imagen');
     } finally {
       setAvatarLoading(false);
-      event.target.value = '';
+      event.target.value = ''; // Reset input
     }
   };
 
   const addInterest = (interest) => {
     const trimmedInterest = interest.trim();
     if (trimmedInterest && !formData.interests.includes(trimmedInterest)) {
+      if (formData.interests.length >= 10) {
+        setMessage('❌ Máximo 10 intereses permitidos');
+        return;
+      }
       setFormData({
         ...formData,
         interests: [...formData.interests, trimmedInterest]
       });
+      setMessage('');
     }
     setNewInterest('');
   };
@@ -188,10 +246,15 @@ export default function Profile() {
   const addSpecialty = (specialty) => {
     const trimmedSpecialty = specialty.trim();
     if (trimmedSpecialty && !formData.specialties.includes(trimmedSpecialty)) {
+      if (formData.specialties.length >= 5) {
+        setMessage('❌ Máximo 5 especialidades permitidas');
+        return;
+      }
       setFormData({
         ...formData,
         specialties: [...formData.specialties, trimmedSpecialty]
       });
+      setMessage('');
     }
     setNewSpecialty('');
   };
@@ -217,11 +280,21 @@ export default function Profile() {
     return name ? name.charAt(0).toUpperCase() : 'U';
   };
 
-  if (!user) {
+  // ✅ MEJORAR EL COMPONENTE DE CARGA
+  if (loading && !user) {
     return (
       <div className="profile-loading">
         <div className="spinner"></div>
         <p>Cargando perfil...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="profile-error">
+        <p>No se pudo cargar el perfil</p>
+        <button onClick={loadProfile}>Reintentar</button>
       </div>
     );
   }
@@ -241,7 +314,7 @@ export default function Profile() {
         </div>
 
         {message && (
-          <div className={`profile-message ${message.includes('correctamente') ? 'success' : 'error'}`}>
+          <div className={`profile-message ${message.includes('✅') ? 'success' : message.includes('❌') ? 'error' : 'info'}`}>
             {message}
           </div>
         )}
@@ -251,7 +324,7 @@ export default function Profile() {
           <div className="profile-sidebar">
             <div className="avatar-card">
               <div className="avatar-wrapper">
-                {user.avatar ? (
+                {avatarUrl ? (
                   <img 
                     src={avatarUrl} 
                     alt="Tu foto de perfil" 

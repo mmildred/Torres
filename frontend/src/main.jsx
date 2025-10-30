@@ -40,9 +40,9 @@ window.Image = function() {
 
 console.log('✅ Interceptor de imágenes instalado');
 
-if ('serviceWorker' in navigator) { 
-  navigator.serviceWorker.register('/sw.js'); 
-}
+// if ('serviceWorker' in navigator) { 
+//   navigator.serviceWorker.register('/sw.js'); 
+// }
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>

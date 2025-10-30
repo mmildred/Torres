@@ -21,21 +21,47 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 r.get('/', async (req, res) => {
   try {
-    let filter = { isPublished: true }; // Solo cursos publicados por defecto
+    let filter = {};
     
-    // Si hay usuario autenticado, aplicar filtros adicionales
+    // 🔴 PROBLEMA: El filtro actual no funciona correctamente
+    // ✅ SOLUCIÓN: Construir el filtro paso a paso
+    
     if (req.user) {
+      // Si es teacher o admin, puede ver:
+      // 1. Todos los cursos publicados
+      // 2. Sus propios cursos (publicados o no)
       if (req.user.role === 'teacher' || req.user.role === 'admin') {
-        filter.$or = [
-          { 'owner._id': req.user.id },
-          { 'instructors._id': req.user.id },
-          { isPublished: true }
-        ];
+        filter = {
+          $or: [
+            { isPublished: true }, // Cursos publicados (todos pueden ver)
+            { 
+              $or: [
+                { 'owner._id': req.user.id }, // Sus cursos como owner
+                { 'instructors._id': req.user.id } // Sus cursos como instructor
+              ]
+            }
+          ]
+        };
+      } else {
+        // Para estudiantes, solo cursos publicados
+        filter = { isPublished: true };
       }
-      // Para estudiantes, mantener solo cursos publicados (no cambia)
+    } else {
+      // Usuario no autenticado, solo cursos publicados
+      filter = { isPublished: true };
     }
 
+    console.log("🔍 Filtro aplicado para usuario:", req.user?.id);
+    console.log("📋 Filtro:", JSON.stringify(filter));
+    
     const list = await Course.find(filter).sort({ createdAt: -1 });
+    console.log("📊 Cursos encontrados:", list.length);
+    
+    // Log para depuración
+    list.forEach(course => {
+      console.log(`📖 Curso: "${course.title}" - Publicado: ${course.isPublished} - Owner: ${course.owner?._id}`);
+    });
+
     res.json(list.map(x => x.toJSON()));
   } catch (error) {
     console.error('Error fetching courses:', error);
@@ -73,6 +99,10 @@ r.get('/:id', auth(), async (req, res) => {
 
 r.post('/', auth('teacher'), async (req, res) => {
   try {
+    console.log("📥 RECIBIENDO PETICIÓN PARA CREAR CURSO");
+    console.log("📋 Datos recibidos:", req.body);
+    console.log("👤 Usuario autenticado:", req.user);
+
     const { 
       title, 
       description, 
@@ -82,18 +112,22 @@ r.post('/', auth('teacher'), async (req, res) => {
       thumbnail 
     } = req.body;
     
-    if (!title) {
+    if (!title || !title.trim()) {
+      console.log("❌ Error: Título requerido");
       return res.status(400).json({ message: 'Título requerido' });
     }
 
     const creator = await User.findById(req.user.id);
     if (!creator) {
+      console.log("❌ Error: Usuario no encontrado");
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
+    console.log("✅ Usuario creador encontrado:", creator.name);
+
     const courseData = {
-      title,
-      description: description || "",
+      title: title.trim(),
+      description: description?.trim() || "",
       category: category || "General",
       level: level || "beginner",
       duration: duration || "Auto-guiado",
@@ -109,15 +143,33 @@ r.post('/', auth('teacher'), async (req, res) => {
         role: creator.role
       }],
       contents: [],
-      isPublished: false
+      isPublished: true, // ✅ CAMBIAR A TRUE PARA PUBLICAR AUTOMÁTICAMENTE
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
 
+    console.log("💾 Guardando curso en base de datos...");
     const course = await Course.create(courseData);
+    console.log("🎉 Curso guardado exitosamente:", course._id);
+    
     res.status(201).json(course.toJSON());
     
   } catch (error) {
-    console.error("Error creando curso:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    console.error("❌ ERROR CRÍTICO creando curso:", error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      console.log("❌ Errores de validación:", errors);
+      return res.status(400).json({ 
+        message: 'Error de validación', 
+        errors 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: "Error interno del servidor",
+      error: error.message 
+    });
   }
 });
 
@@ -768,6 +820,50 @@ r.get('/:courseId/submissions/me', auth(), async (req, res) => {
 
   } catch (error) {
     console.error('Error obteniendo entregas:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+r.get('/my-courses', auth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Obtener todas las inscripciones del usuario
+    const enrollments = await Enrollment.find({ userId: userId });
+    
+    // Obtener los cursos de las inscripciones
+    const courseIds = enrollments.map(enrollment => enrollment.courseId);
+    
+    const courses = await Course.find({ 
+      _id: { $in: courseIds },
+      isPublished: true // Solo cursos publicados
+    });
+    
+    // Enriquecer con información de progreso
+    const coursesWithProgress = await Promise.all(
+      courses.map(async (course) => {
+        const enrollment = enrollments.find(e => e.courseId.toString() === course._id.toString());
+        const progress = {
+          enrolled: true,
+          progress: course.contents?.length > 0 ? 
+            Math.round((enrollment.completedContentIds.length / course.contents.length) * 100) : 0,
+          completedContents: enrollment.completedContentIds.length,
+          totalContents: course.contents?.length || 0,
+          lastAccessAt: enrollment.lastAccessAt,
+          enrolledAt: enrollment.createdAt
+        };
+        
+        return {
+          ...course.toJSON(),
+          progress: progress,
+          isEnrolled: true
+        };
+      })
+    );
+    
+    res.json(coursesWithProgress);
+  } catch (error) {
+    console.error('Error obteniendo mis cursos:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });

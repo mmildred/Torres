@@ -1,6 +1,6 @@
-// Courses.jsx - VERSIÓN CON MEJOR MANEJO DE ERRORES 404
+// Courses.jsx - VERSIÓN OPTIMIZADA
 import React, { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api";
 import { getUser, isAuthenticated } from "../auth";
 import "./Courses.css";
@@ -13,6 +13,7 @@ export default function Courses() {
   const [error, setError] = useState(null);
   const user = getUser();
   const navigate = useNavigate();
+  const location = useLocation();
   const [deletingById, setDeletingById] = useState({});
 
   const isCourseInstructor = (course) => {
@@ -27,24 +28,42 @@ export default function Courses() {
     return isAdmin || isOwner || isInstructor;
   };
 
-  const fetchCourses = useCallback(async () => {
-    try {
-      setError(null);
-      const res = await api.get("/courses");
-      const coursesWithOwner = res.data.map(course => ({
-        ...course,
-        owner: course.owner || { name: "Administrador" },
-        enrolled: false,
-        progress: 0
-      }));
-      setCourses(coursesWithOwner);
-      setHasFetched(true);
-    } catch (err) {
-      console.error("Error cargando cursos:", err);
-      setError(err.response?.data?.message || "Error al cargar los cursos");
-      setHasFetched(true);
+const fetchCourses = useCallback(async () => {
+  try {
+    console.log("🔄 Iniciando carga de cursos...");
+    console.log("👤 Usuario actual:", user);
+    
+    setError(null);
+    const res = await api.get("/courses");
+    
+    console.log("✅ Respuesta del servidor - cantidad:", res.data.length);
+    console.log("📋 Cursos recibidos:", res.data);
+    
+    const coursesWithOwner = res.data.map(course => ({
+      ...course,
+      owner: course.owner || { name: "Administrador" },
+      enrolled: false,
+      progress: 0
+    }));
+    
+    console.log("📊 Cursos procesados:", coursesWithOwner.length);
+    
+    // Buscar específicamente el curso "jojojo"
+    const nuevoCurso = coursesWithOwner.find(c => c.title === 'jojojo');
+    console.log("🎯 Curso 'jojojo' encontrado?:", nuevoCurso ? "SÍ" : "NO");
+    if (nuevoCurso) {
+      console.log("📝 Detalles del curso encontrado:", nuevoCurso);
     }
-  }, []);
+    
+    setCourses(coursesWithOwner);
+    setHasFetched(true);
+    
+  } catch (err) {
+    console.error("❌ Error cargando cursos:", err);
+    setError(err.response?.data?.message || "Error al cargar los cursos");
+    setHasFetched(true);
+  }
+}, [user]);
 
   useEffect(() => {
     if (!hasFetched) {
@@ -52,7 +71,7 @@ export default function Courses() {
     }
   }, [hasFetched, fetchCourses]);
 
-  // ✅ MEJOR MANEJO DE ERRORES 404 EN PROGRESO
+  // ✅ EFECTO OPTIMIZADO PARA CARGAR PROGRESO
   useEffect(() => {
     if (!user || !hasFetched || !courses.length) return;
 
@@ -60,8 +79,11 @@ export default function Courses() {
     
     (async () => {
       try {
+        // ✅ LIMITAR A SOLO LOS PRIMEROS 8 CURSOS PARA EVITAR SOBRECARGA
+        const coursesToCheck = courses.slice(0, 8);
+        
         const results = await Promise.allSettled(
-          courses.map(async (c) => {
+          coursesToCheck.map(async (c) => {
             try {
               const { data } = await api.get(`/courses/${c._id}/progress/me`);
               return [c._id, data];
@@ -94,7 +116,10 @@ export default function Courses() {
             .filter(result => result.status === 'fulfilled')
             .map(result => result.value);
           
-          setProgressByCourse(Object.fromEntries(successfulResults));
+          setProgressByCourse(prev => ({
+            ...prev,
+            ...Object.fromEntries(successfulResults)
+          }));
         }
       } catch (e) {
         console.error("Error general cargando progreso:", e);
@@ -102,7 +127,21 @@ export default function Courses() {
     })();
 
     return () => { cancelled = true; };
-  }, [user, hasFetched, courses]);
+  }, [user, hasFetched, courses.length]); // ✅ Solo depende de courses.length, no del array completo
+
+  // ✅ FUNCIÓN PARA CARGAR PROGRESO INDIVIDUAL (PARA INSCRIPCIONES NUEVAS)
+  const loadCourseProgress = async (courseId) => {
+    try {
+      const { data } = await api.get(`/courses/${courseId}/progress/me`);
+      setProgressByCourse(prev => ({
+        ...prev,
+        [courseId]: data
+      }));
+    } catch (error) {
+      // Manejar error silenciosamente
+      console.warn(`Error cargando progreso individual para ${courseId}:`, error);
+    }
+  };
 
   const handleDeleteCourse = async (courseId) => {
     if (user?.role !== "admin") return;
@@ -113,6 +152,14 @@ export default function Courses() {
       setDeletingById(prev => ({ ...prev, [courseId]: true }));
       await api.delete(`/courses/${courseId}`);
       setCourses(prev => prev.filter(c => c._id !== courseId));
+      
+      // ✅ LIMPIAR PROGRESO DEL CURSO ELIMINADO
+      setProgressByCourse(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[courseId];
+        return newProgress;
+      });
+      
       alert("Curso eliminado correctamente.");
     } catch (err) {
       console.error("Error al eliminar curso:", err);
@@ -152,20 +199,14 @@ export default function Courses() {
       alert("🎉 ¡Te has inscrito exitosamente al curso!");
       
       // ✅ ACTUALIZAR PROGRESO DESPUÉS DE INSCRIBIRSE
-      try {
-        const { data } = await api.get(`/courses/${courseId}/progress/me`);
-        setProgressByCourse(prev => ({
-          ...prev,
-          [courseId]: data
-        }));
-      } catch (error) {
-        console.warn("Error actualizando progreso después de inscripción:", error);
-      }
+      await loadCourseProgress(courseId);
       
     } catch (err) {
       console.error("Error al inscribirse:", err);
       if (err.response?.status === 400) {
         alert('Ya estás inscrito en este curso');
+        // ✅ SI YA ESTÁ INSCRITO, CARGAR SU PROGRESO
+        await loadCourseProgress(courseId);
       } else {
         alert(err.response?.data?.message || 'Error al inscribirse en el curso');
       }
@@ -186,7 +227,7 @@ export default function Courses() {
     }
     
     const prog = progressByCourse[courseId];
-    if (prog?.progress > 0) {
+    if (prog?.enrolled) {
       navigate(`/courses/${courseId}/learn`);
     } else {
       navigate(`/courses/${courseId}`);
@@ -201,6 +242,18 @@ export default function Courses() {
       }
     });
   };
+
+  // ✅ COMPONENTE DE CARGA MEJORADO
+  if (!hasFetched) {
+    return (
+      <div className="courses-container">
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Cargando cursos...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error && hasFetched) {
     return (
@@ -260,184 +313,186 @@ export default function Courses() {
         )}
       </div>
 
-      {!hasFetched ? (
-        <div className="loading-state">
-          <div className="loading-spinner"></div>
-          <p>Cargando cursos...</p>
-        </div>
-      ) : (
-        <div className="courses-grid">
-          {courses.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">📚</div>
-              <h3>No hay cursos disponibles</h3>
-              <p>Pronto agregaremos nuevos cursos a nuestro catálogo</p>
-              {user?.role === "teacher" && (
-                <button 
-                  onClick={() => navigate("/courses/new")}
-                  className="btn btn-primary"
-                >
-                  Crear Primer Curso
-                </button>
-              )}
-            </div>
-          ) : (
-            courses.map((course) => {
-              // ✅ MANEJO SEGURO DEL PROGRESO
-              const prog = progressByCourse[course._id] || { 
-                enrolled: false, 
-                progress: 0, 
-                completedContents: 0, 
-                totalContents: 0 
-              };
-              
-              const isLoading = loadingStates[course._id];
-              const userIsInstructor = isCourseInstructor(course);
+      <div className="courses-grid">
+        {courses.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">📚</div>
+            <h3>No hay cursos disponibles</h3>
+            <p>Pronto agregaremos nuevos cursos a nuestro catálogo</p>
+            {user?.role === "teacher" && (
+              <button 
+                onClick={() => navigate("/courses/new")}
+                className="btn btn-primary"
+              >
+                Crear Primer Curso
+              </button>
+            )}
+          </div>
+        ) : (
+          courses.map((course) => {
+            // ✅ MANEJO SEGURO DEL PROGRESO CON VALORES POR DEFECTO
+            const prog = progressByCourse[course._id] || { 
+              enrolled: false, 
+              progress: 0, 
+              completedContents: 0, 
+              totalContents: 0 
+            };
+            
+            const isLoading = loadingStates[course._id];
+            const userIsInstructor = isCourseInstructor(course);
+            const isEnrolled = prog.enrolled;
 
-              return (
-                <div key={course._id} className="course-card">
-                  <div className="course-image">
-                    <img
-                      src={
-                        course.thumbnail ||
-                        "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
-                      }
-                      alt={course.title}
-                      onError={(e) => {
-                        e.target.src = "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80";
-                      }}
-                    />
-                    <div className="course-category">
-                      {course.category || "General"}
+            return (
+              <div key={course._id} className="course-card">
+                <div className="course-image">
+                  <img
+                    src={
+                      course.thumbnail ||
+                      "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+                    }
+                    alt={course.title}
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80";
+                    }}
+                    loading="lazy" // ✅ OPTIMIZACIÓN DE CARGA
+                  />
+                  <div className="course-category">
+                    {course.category || "General"}
+                  </div>
+                  <div className="course-level-tag">
+                    <span className={`level-badge ${course.level?.toLowerCase() || 'beginner'}`}>
+                      {course.level === 'beginner' ? 'Principiante' : 
+                       course.level === 'intermediate' ? 'Intermedio' : 
+                       course.level === 'advanced' ? 'Avanzado' : 'Principiante'}
+                    </span>
+                  </div>
+                  
+                  {/* ✅ BADGE DE INSCRITO */}
+                  {isEnrolled && (
+                    <div className="enrolled-badge">
+                      ✅ Inscrito
                     </div>
-                    <div className="course-level-tag">
-                      <span className={`level-badge ${course.level?.toLowerCase() || 'beginner'}`}>
-                        {course.level === 'beginner' ? 'Principiante' : 
-                         course.level === 'intermediate' ? 'Intermedio' : 
-                         course.level === 'advanced' ? 'Avanzado' : 'Principiante'}
+                  )}
+                </div>
+                
+                <div className="course-content">
+                  <h3 className="course-title">{course.title}</h3>
+
+                  <div className="course-meta">
+                    {user && (
+                      <div className="meta-item">
+                        <span className="meta-icon">👤</span>
+                        <span className="meta-text instructor">
+                          {course.owner?.name || course.instructor || "Administrador"}
+                        </span>
+                      </div>
+                    )}
+                    <div className="meta-item">
+                      <span className="meta-icon">⏱️</span>
+                      <span className="meta-text">
+                        {course.duration || "Auto-guiado"}
                       </span>
                     </div>
                   </div>
-                  
-                  <div className="course-content">
-                    <h3 className="course-title">{course.title}</h3>
 
-                    <div className="course-meta">
-                      {user && (
-                        <div className="meta-item">
-                          <span className="meta-icon">👤</span>
-                          <span className="meta-text instructor">
-                            {course.owner?.name || course.instructor || "Administrador"}
-                          </span>
-                        </div>
-                      )}
-                      <div className="meta-item">
-                        <span className="meta-icon">⏱️</span>
-                        <span className="meta-text">
-                          {course.duration || "Auto-guiado"}
-                        </span>
+                  <p className="course-description">
+                    {course.description?.slice(0, 120) || "Sin descripción disponible..."}
+                    {course.description && course.description.length > 120 ? "..." : ""}
+                  </p>
+
+                  {/* ✅ MOSTRAR PROGRESO SOLO SI ESTÁ INSCRITO */}
+                  {user && isEnrolled && (
+                    <div className="progress-container">
+                      <div className="progress-header">
+                        <span className="progress-label">Tu progreso</span>
+                        <span className="progress-percent">{prog.progress}%</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill" 
+                          style={{ width: `${prog.progress}%` }}
+                        ></div>
+                      </div>
+                      <div className="progress-stats">
+                        {prog.completedContents} de {prog.totalContents} lecciones completadas
                       </div>
                     </div>
+                  )}
 
-                    <p className="course-description">
-                      {course.description?.slice(0, 120) || "Sin descripción disponible..."}
-                      {course.description && course.description.length > 120 ? "..." : ""}
-                    </p>
+                  {!user && (
+                    <div className="guest-prompt">
+                      <p>Inicia sesión para acceder a este curso</p>
+                    </div>
+                  )}
 
-                    {/* ✅ MOSTRAR PROGRESO SOLO SI ESTÁ INSCRITO Y TIENE PROGRESO */}
-                    {user && prog.enrolled && prog.progress > 0 && (
-                      <div className="progress-container">
-                        <div className="progress-header">
-                          <span className="progress-label">Tu progreso</span>
-                          <span className="progress-percent">{prog.progress}%</span>
-                        </div>
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill" 
-                            style={{ width: `${prog.progress}%` }}
-                          ></div>
-                        </div>
-                        <div className="progress-stats">
-                          {prog.completedContents} de {prog.totalContents} lecciones completadas
-                        </div>
-                      </div>
+                  <div className="course-actions">
+                    {user && (
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={() => handleViewDetails(course._id)}
+                      >
+                        <span className="btn-icon">👁️</span>
+                        Ver detalles
+                      </button>
                     )}
 
-                    {!user && (
-                      <div className="guest-prompt">
-                        <p>Inicia sesión para acceder a este curso</p>
-                      </div>
-                    )}
-
-                    <div className="course-actions">
-                      {user && (
+                    {user ? (
+                      isEnrolled ? (
                         <button 
-                          className="btn btn-secondary"
-                          onClick={() => handleViewDetails(course._id)}
+                          className="btn btn-primary"
+                          onClick={() => handleAccessCourse(course._id)}
                         >
-                          <span className="btn-icon">👁️</span>
-                          Ver detalles
+                          <span className="btn-icon">▶️</span>
+                          {prog.progress === 100 ? '🎉 Certificado' : 'Continuar'}
                         </button>
-                      )}
-
-                      {user ? (
-                        prog.enrolled && prog.progress > 0 ? (
-                          <button 
-                            className="btn btn-primary"
-                            onClick={() => handleAccessCourse(course._id)}
-                          >
-                            <span className="btn-icon">▶️</span>
-                            {prog.progress === 100 ? '🎉 Certificado' : 'Continuar'}
-                          </button>
-                        ) : userIsInstructor ? (
-                          <button 
-                            className="btn btn-primary"
-                            onClick={() => navigate(`/courses/${course._id}/manage`)}
-                          >
-                            <span className="btn-icon">⚙️</span>
-                            Gestionar
-                          </button>
-                        ) : (
-                          <button 
-                            className="btn btn-primary"
-                            onClick={() => handleEnroll(course._id)}
-                            disabled={isLoading}
-                          >
-                            <span className="btn-icon">🎯</span>
-                            {isLoading ? "Inscribiendo..." : "Inscribirse"}
-                          </button>
-                        )
+                      ) : userIsInstructor ? (
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => navigate(`/courses/${course._id}/manage`)}
+                        >
+                          <span className="btn-icon">⚙️</span>
+                          Gestionar
+                        </button>
                       ) : (
                         <button 
                           className="btn btn-primary"
-                          onClick={() => navigate("/register")}
+                          onClick={() => handleEnroll(course._id)}
+                          disabled={isLoading}
                         >
-                          <span className="btn-icon">🔒</span>
-                          Acceder al Curso
+                          <span className="btn-icon">🎯</span>
+                          {isLoading ? "Inscribiendo..." : "Inscribirse"}
                         </button>
-                      )}
+                      )
+                    ) : (
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => navigate("/register")}
+                      >
+                        <span className="btn-icon">🔒</span>
+                        Acceder al Curso
+                      </button>
+                    )}
 
-                      {user?.role === "admin" && (
-                        <button
-                          className="btn btn-danger"
-                          onClick={() => handleDeleteCourse(course._id)}
-                          disabled={!!deletingById[course._id]}
-                          title="Borrar curso"
-                        >
-                          <span className="btn-icon">
-                            {deletingById[course._id] ? "⏳" : "🗑️"}
-                          </span>
-                          {deletingById[course._id] ? "Eliminando..." : "Eliminar"}
-                        </button>
-                      )}
-                    </div>
+                    {user?.role === "admin" && (
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDeleteCourse(course._id)}
+                        disabled={!!deletingById[course._id]}
+                        title="Borrar curso"
+                      >
+                        <span className="btn-icon">
+                          {deletingById[course._id] ? "⏳" : "🗑️"}
+                        </span>
+                        {deletingById[course._id] ? "Eliminando..." : "Eliminar"}
+                      </button>
+                    )}
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

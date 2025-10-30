@@ -1,3 +1,4 @@
+// CourseNew.jsx - VERSIÓN MEJORADA
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
@@ -32,12 +33,26 @@ export default function CourseNew() {
     setError("");
 
     try {
-      await api.post("/courses", formData);
-      alert("Curso creado exitosamente");
-      navigate("/courses");
+      console.log("📝 Enviando datos del curso:", formData);
+      
+      const response = await api.post("/courses", formData);
+      console.log("✅ Curso creado exitosamente:", response.data);
+      
+      alert("🎉 Curso creado exitosamente");
+      
+      // ✅ FORZAR RECARGA DE LA PÁGINA DE CURSOS
+      // Esto asegura que el nuevo curso se muestre inmediatamente
+      setTimeout(() => {
+        navigate("/courses", { 
+          state: { shouldRefresh: true } 
+        });
+      }, 1000);
+      
     } catch (err) {
-      console.error("Error creando curso:", err);
-      setError(err.response?.data?.message || "Error al crear el curso");
+      console.error("❌ Error creando curso:", err);
+      const errorMessage = err.response?.data?.message || "Error al crear el curso";
+      setError(errorMessage);
+      alert(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -77,6 +92,7 @@ export default function CourseNew() {
             value={formData.title}
             onChange={handleChange}
             required
+            minLength="3"
             placeholder="Ingresa el título del curso"
           />
         </div>
@@ -171,7 +187,7 @@ export default function CourseNew() {
           <button
             type="submit"
             className="submit-btn"
-            disabled={loading}
+            disabled={loading || !formData.title.trim()}
           >
             {loading ? "Creando..." : "Crear Curso"}
           </button>
