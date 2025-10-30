@@ -131,11 +131,10 @@ export default function CourseDetail() {
     }
   };
 
-  const handleContinue = () => {
-    navigate(`/courses/${courseId}/learn`);
-  };
+const handleContinue = () => {
+  navigate(`/courses/${courseId}/learn`);
+};
 
-  // Verificar si es instructor del curso
   const isInstructor = user && course && (
     user.role === 'admin' || 
     course.owner?._id.toString() === user._id.toString() ||

@@ -196,6 +196,8 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
   }
 });
 
+
+
 // ✅ RUTA PARA SERVIR ARCHIVOS SUBIDOS
 r.get('/uploads/:filename', async (req, res) => {
   try {
@@ -607,6 +609,169 @@ r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async 
 
   } catch (error) {
     console.error('Error alternando publicación:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+r.post('/:courseId/contents/:contentId/complete', auth(), async (req, res) => {
+  try {
+    const { courseId, contentId } = req.params;
+    const userId = req.user.id;
+
+    const enrollment = await Enrollment.findOne({
+      courseId: courseId,
+      userId: userId
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ message: 'No estás inscrito en este curso' });
+    }
+
+    // Verificar si ya está completado
+    if (!enrollment.completedContentIds.includes(contentId)) {
+      enrollment.completedContentIds.push(contentId);
+      await enrollment.save();
+    }
+
+    // Calcular progreso actualizado
+    const course = await Course.findById(courseId);
+    const totalContents = course?.contents?.length || 0;
+    const completedContents = enrollment.completedContentIds.length;
+    const progress = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
+
+    res.json({
+      message: 'Contenido marcado como completado',
+      completed: true,
+      progress: progress,
+      completedContents: completedContents,
+      totalContents: totalContents
+    });
+
+  } catch (error) {
+    console.error('Error completando contenido:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ✅ DESMARCAR CONTENIDO COMO COMPLETADO
+r.post('/:courseId/contents/:contentId/uncomplete', auth(), async (req, res) => {
+  try {
+    const { courseId, contentId } = req.params;
+    const userId = req.user.id;
+
+    const enrollment = await Enrollment.findOne({
+      courseId: courseId,
+      userId: userId
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ message: 'No estás inscrito en este curso' });
+    }
+
+    // Remover de completados
+    enrollment.completedContentIds = enrollment.completedContentIds.filter(
+      id => id.toString() !== contentId
+    );
+    await enrollment.save();
+
+    // Calcular progreso actualizado
+    const course = await Course.findById(courseId);
+    const totalContents = course?.contents?.length || 0;
+    const completedContents = enrollment.completedContentIds.length;
+    const progress = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
+
+    res.json({
+      message: 'Contenido desmarcado como completado',
+      completed: false,
+      progress: progress,
+      completedContents: completedContents,
+      totalContents: totalContents
+    });
+
+  } catch (error) {
+    console.error('Error descompletando contenido:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ✅ SUBIR ENTREGA DE TAREA
+r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), async (req, res) => {
+  try {
+    const { courseId, contentId } = req.params;
+    const userId = req.user.id;
+    const { comments } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ message: 'Archivo requerido para entrega' });
+    }
+
+    const enrollment = await Enrollment.findOne({
+      courseId: courseId,
+      userId: userId
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ message: 'No estás inscrito en este curso' });
+    }
+
+    // Verificar si ya existe una entrega para este contenido
+    const existingSubmissionIndex = enrollment.submissions.findIndex(
+      submission => submission.contentId.toString() === contentId
+    );
+
+    const submissionData = {
+      contentId: contentId,
+      submittedAt: new Date(),
+      fileUrl: `/uploads/${file.filename}`,
+      fileName: file.originalname,
+      filePath: file.filename,
+      comments: comments || '',
+      status: 'submitted'
+    };
+
+    if (existingSubmissionIndex !== -1) {
+      // Actualizar entrega existente
+      enrollment.submissions[existingSubmissionIndex] = submissionData;
+    } else {
+      // Crear nueva entrega
+      enrollment.submissions.push(submissionData);
+    }
+
+    await enrollment.save();
+
+    res.status(201).json({
+      message: 'Entrega enviada exitosamente',
+      submission: submissionData
+    });
+
+  } catch (error) {
+    console.error('Error enviando entrega:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ✅ OBTENER ENTREGAS DE UN ESTUDIANTE
+r.get('/:courseId/submissions/me', auth(), async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+
+    const enrollment = await Enrollment.findOne({
+      courseId: courseId,
+      userId: userId
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ message: 'No estás inscrito en este curso' });
+    }
+
+    res.json({
+      submissions: enrollment.submissions || []
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo entregas:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });

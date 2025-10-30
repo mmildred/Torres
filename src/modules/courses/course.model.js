@@ -1,3 +1,4 @@
+// course.model.js - ACTUALIZADO
 import { Schema, model, Types } from "mongoose";
 
 const OwnerSchema = new Schema(
@@ -33,9 +34,22 @@ const ContentSchema = new Schema({
     type: String,
     default: ""
   },
+  // ✅ CAMPOS DE ARCHIVO AGREGADOS
   fileUrl: {
     type: String,
     default: ""
+  },
+  fileName: {
+    type: String,
+    default: ""
+  },
+  filePath: {
+    type: String,
+    default: ""
+  },
+  fileSize: {
+    type: Number,
+    default: 0
   },
   instructions: {
     type: String,

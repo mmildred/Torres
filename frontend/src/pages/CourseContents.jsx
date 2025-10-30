@@ -1,4 +1,4 @@
-// CourseContents.jsx
+// CourseContents.jsx - ACTUALIZADO
 import React from "react";
 import api from "../api";
 import "./CourseContents.css";
@@ -7,14 +7,17 @@ export default function CourseContents({ course, userRole, isEnrolled, isInstruc
   
   const handleDownload = async (content) => {
     try {
-      if (!content.filePath) {
+      // ✅ VERIFICAR DIFERENTES CAMPOS DE ARCHIVO
+      const filePath = content.filePath || content.fileUrl?.replace('/uploads/', '');
+      
+      if (!filePath) {
         alert('Este contenido no tiene archivo asociado');
         return;
       }
 
       // Para profesores/admin: acceso directo
       if (userRole === 'teacher' || userRole === 'admin' || isInstructor) {
-        window.open(`http://localhost:4000/courses/uploads/${content.filePath}`, '_blank');
+        window.open(`http://localhost:4000/courses/uploads/${filePath}`, '_blank');
         return;
       }
 
@@ -29,7 +32,7 @@ export default function CourseContents({ course, userRole, isEnrolled, isInstruc
         return;
       }
 
-      window.open(`http://localhost:4000/courses/uploads/${content.filePath}`, '_blank');
+      window.open(`http://localhost:4000/courses/uploads/${filePath}`, '_blank');
       
     } catch (error) {
       console.error('Error descargando archivo:', error);
@@ -57,6 +60,24 @@ export default function CourseContents({ course, userRole, isEnrolled, isInstruc
     return course.contents.filter(content => 
       content.isPublished === true
     );
+  };
+
+  // ✅ FUNCIÓN PARA VERIFICAR SI TIENE ARCHIVO
+  const hasFile = (content) => {
+    return !!(content.filePath || content.fileUrl);
+  };
+
+  // ✅ OBTENER NOMBRE DEL ARCHIVO
+  const getFileName = (content) => {
+    return content.fileName || content.title || 'archivo';
+  };
+
+  // ✅ OBTENER TAMAÑO DEL ARCHIVO
+  const getFileSize = (content) => {
+    if (content.fileSize) {
+      return Math.round(content.fileSize / 1024 / 1024 * 100) / 100;
+    }
+    return null;
   };
 
   const visibleContents = getVisibleContents();
@@ -108,10 +129,18 @@ export default function CourseContents({ course, userRole, isEnrolled, isInstruc
                 {content.duration > 0 && (
                   <span className="content-duration">Duración: {content.duration} min</span>
                 )}
-                {content.fileSize && (
-                  <span className="content-size">
-                    Tamaño: {Math.round(content.fileSize / 1024 / 1024 * 100) / 100} MB
-                  </span>
+                {/* ✅ MOSTRAR INFORMACIÓN DEL ARCHIVO SI EXISTE */}
+                {hasFile(content) && (
+                  <>
+                    <span className="content-file">
+                      Archivo: {getFileName(content)}
+                    </span>
+                    {getFileSize(content) && (
+                      <span className="content-size">
+                        Tamaño: {getFileSize(content)} MB
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -123,15 +152,15 @@ export default function CourseContents({ course, userRole, isEnrolled, isInstruc
             </div>
 
             <div className="content-actions">
-              {content.filePath && canViewContent(content) ? (
+              {hasFile(content) && canViewContent(content) ? (
                 <button 
                   className="download-btn"
                   onClick={() => handleDownload(content)}
-                  title={`Descargar ${content.fileName || content.title}`}
+                  title={`Descargar ${getFileName(content)}`}
                 >
                   📥 Descargar
                 </button>
-              ) : content.filePath ? (
+              ) : hasFile(content) ? (
                 <button className="locked-btn" disabled>
                   🔒 No disponible
                 </button>

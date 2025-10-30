@@ -15,6 +15,8 @@ import CourseNew from './pages/CourseNew.jsx';
 import CourseEnrollment from './pages/CourseEnrollment.jsx';
 import CourseManage from './pages/CourseManage.jsx';
 import CourseDetail from './pages/CourseDetail.jsx';
+import CourseLearning from './pages/CourseLearning.jsx';
+import MyCourses from './pages/MyCourses.jsx'
 
 // ✅ BLOQUEAR IMAGEN PROBLEMÁTICA - DEBE ESTAR ANTES DEL RENDER
 console.log('🚀 Inicializando aplicación...');
@@ -53,12 +55,14 @@ createRoot(document.getElementById('root')).render(
         <Route path="/courses/:courseId/manage" element={<CourseManage />} />
         <Route path="/courses/:courseId/enroll" element={<CourseEnrollment />} />
         <Route path="/courses/:courseId" element={<CourseDetail />} />
+        <Route path='/courses/:courseId/learn' element={<CourseLearning/>} />
         <Route path='login' element={<Login/>}/>
         <Route path='register' element={<Register/>}/>
         <Route path="/admin" element={<Admin />} />
         <Route path="/profile" element={<Profile />} />
         <Route path='forgot-password' element={<ForgotPassword />} />
         <Route path='reset-password' element={<ResetPassword />} />
+        <Route path='my-courses' element={<MyCourses />} />
       </Route>
     </Routes>
   </BrowserRouter>
