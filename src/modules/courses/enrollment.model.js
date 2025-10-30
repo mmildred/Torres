@@ -1,17 +1,69 @@
-import mongoose from "mongoose";
-const { Schema, Types } = mongoose;
+import mongoose from 'mongoose';
 
-const EnrollmentSchema = new Schema(
-  {
-    courseId: { type: Types.ObjectId, ref: "Course", required: true, index: true },
-    studentId: { type: Types.ObjectId, ref: "User", required: true, index: true },
-    completedContentIds: [{ type: Types.ObjectId, ref: "Content" }],
-    lastAccessAt: { type: Date },
+const submissionSchema = new mongoose.Schema({
+  contentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
   },
-  { timestamps: true }
-);
+  submittedAt: {
+    type: Date,
+    default: Date.now
+  },
+  fileUrl: {
+    type: String,
+    default: ''
+  },
+  fileName: {
+    type: String,
+    default: ''
+  },
+  filePath: {
+    type: String,
+    default: ''
+  },
+  comments: {
+    type: String,
+    default: ''
+  },
+  status: {
+    type: String,
+    enum: ['submitted', 'graded', 'returned'],
+    default: 'submitted'
+  },
+  grade: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+  feedback: {
+    type: String,
+    default: ''
+  }
+});
 
-// Un alumno no puede inscribirse dos veces al mismo curso
-EnrollmentSchema.index({ courseId: 1, studentId: 1 }, { unique: true });
+const enrollmentSchema = new mongoose.Schema({
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    required: true
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  completedContentIds: [{
+    type: mongoose.Schema.Types.ObjectId
+  }],
+  submissions: [submissionSchema],
+  lastAccessAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
 
-export default mongoose.model("Enrollment", EnrollmentSchema);
+enrollmentSchema.index({ courseId: 1, userId: 1 }, { unique: true });
+
+export default mongoose.model('Enrollment', enrollmentSchema);

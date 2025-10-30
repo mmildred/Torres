@@ -1,10 +1,9 @@
-/* Courses.css - COMPLETO */
+/* Courses.css - Diseño mejorado */
 
 .courses-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Header Styles */
@@ -22,6 +21,7 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  line-height: 1.2;
 }
 
 .courses-header .subtitle {
@@ -44,6 +44,7 @@
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -360,12 +361,12 @@
   background: white;
   border-radius: 16px;
   overflow: hidden;
+  transition: all 0.3s ease;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #f1f5f9;
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
 .course-card:hover {
@@ -375,7 +376,7 @@
 
 .course-image {
   position: relative;
-  height: 200px;
+  height: 160px;
   overflow: hidden;
 }
 
@@ -416,24 +417,43 @@
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.5px;
 }
 
 .level-badge.beginner {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
 }
 
 .level-badge.intermediate {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #1565c0;
 }
 
 .level-badge.advanced {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: #fce4ec;
+  color: #c2185b;
+  border: 1px solid #c2185b;
 }
 
-.level-badge.expert {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+.level-badge.principiante {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+}
+
+.level-badge.intermedio {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #1565c0;
+}
+
+.level-badge.avanzado {
+  background: #fce4ec;
+  color: #c2185b;
+  border: 1px solid #c2185b;
 }
 
 /* Course Content */
@@ -445,11 +465,12 @@
 }
 
 .course-title {
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 1rem;
   line-height: 1.4;
+  margin: 0;
 }
 
 .course-meta {
@@ -461,10 +482,10 @@
 
 .meta-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #64748b;
+  gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .meta-icon {
@@ -472,7 +493,9 @@
 }
 
 .meta-text {
+  color: #666;
   font-weight: 500;
+  color: #666;
 }
 
 .meta-text.instructor {
@@ -483,7 +506,8 @@
 .course-description {
   color: #64748b;
   line-height: 1.5;
-  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  margin: 0;
   flex: 1;
   font-size: 14px;
 }
@@ -566,17 +590,22 @@
 .btn {
   padding: 10px 16px;
   border: none;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   flex: 1;
   justify-content: center;
-  min-width: 120px;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.btn-icon {
+  font-size: 1rem;
 }
 
 .btn-primary {
@@ -605,12 +634,7 @@
 .btn-danger {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-}
-
-.btn-danger:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
 .btn:disabled {
@@ -624,25 +648,45 @@
   grid-column: 1 / -1;
   text-align: center;
   padding: 4rem 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  grid-column: 1 / -1;
 }
 
 .empty-icon {
   font-size: 4rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
 }
 
 .empty-state h3 {
-  font-size: 1.5rem;
-  color: #1e293b;
+  color: #666;
   margin-bottom: 0.5rem;
-  font-weight: 700;
+  font-size: 1.5rem;
 }
 
 .empty-state p {
-  color: #64748b;
+  color: #999;
+  margin: 0;
+}
+
+/* Estilos para usuarios no logueados */
+.guest-banner {
+  background: linear-gradient(135deg, var(--campus-green) 0%, var(--wifi-green) 100%);
+  color: white;
+  padding: 2.5rem;
+  border-radius: 16px;
+  margin-top: 2rem;
+  text-align: center;
+  box-shadow: 0 8px 25px rgba(35, 166, 150, 0.2);
+}
+
+.guest-banner-content h3 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.guest-banner-content p {
+  font-size: 1.1rem;
   margin-bottom: 2rem;
   font-size: 1rem;
 }
@@ -670,6 +714,55 @@
 
 .filter-dropdown::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Botón de gestión */
+.manage-btn {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  text-align: center;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.manage-btn:hover {
+  background: linear-gradient(135deg, #e78a08 0%, #b45309 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.course-card {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.course-card:nth-child(odd) {
+  animation-delay: 0.1s;
+}
+
+.course-card:nth-child(even) {
+  animation-delay: 0.2s;
 }
 
 /* Responsive */
@@ -719,7 +812,7 @@
   
   .courses-grid {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 1rem;
   }
   
   .course-actions {
@@ -727,7 +820,21 @@
   }
   
   .btn {
-    min-width: auto;
+    width: 100%;
+  }
+
+  /* Responsive para usuarios no logueados */
+  .guest-banner {
+    padding: 2rem 1.5rem;
+    margin: 1rem 0.5rem 0;
+  }
+  
+  .guest-banner-content h3 {
+    font-size: 1.5rem;
+  }
+  
+  .guest-banner-content p {
+    font-size: 1rem;
   }
   
   .guest-actions {
@@ -741,15 +848,6 @@
 }
 
 @media (max-width: 480px) {
-  .courses-header .title {
-    font-size: 1.8rem;
-  }
-  
-  .course-card {
-    margin: 0 auto;
-    max-width: 100%;
-  }
-  
   .course-content {
     padding: 1rem;
   }
@@ -761,13 +859,9 @@
   .empty-icon {
     font-size: 3rem;
   }
-}
 
-/* Animaciones adicionales */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+  .guest-banner {
+    padding: 1.5rem 1rem;
   }
   to {
     opacity: 1;

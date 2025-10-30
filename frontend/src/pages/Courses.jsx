@@ -12,13 +12,10 @@ export default function Courses() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [categories, setCategories] = useState([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({});
   const user = getUser();
   const navigate = useNavigate();
   const [deletingById, setDeletingById] = useState({});
-  
-  // Referencias para controlar las peticiones
-  const progressRequestsRef = useRef(new Set());
-  const isFetchingProgressRef = useRef(false);
 
   const handleDeleteCourse = async (courseId) => {
     if (user?.role !== "admin") return;
@@ -50,7 +47,9 @@ export default function Courses() {
       const res = await api.get("/courses");
       const coursesWithOwner = res.data.map(course => ({
         ...course,
-        owner: course.owner || { name: "Administrador" }
+        owner: course.owner || { name: "Administrador" },
+        enrolled: false,
+        progress: 0
       }));
       setCourses(coursesWithOwner);
       setFilteredCourses(coursesWithOwner);
@@ -324,7 +323,13 @@ export default function Courses() {
           </div>
         ) : (
           filteredCourses.map((course) => {
+            // ✅ CORREGIDO: Usar progressByCourse en lugar de prog
             const prog = progressByCourse[course._id] || { total: 0, completed: 0, percent: 0 };
+            const isEnrolled = course.enrolled;
+            const progress = course.progress || 0;
+            const isLoading = loadingStates[course._id];
+            const userIsInstructor = isCourseInstructor(course);
+
             return (
               <div key={course._id} className="course-card">
                 <div className="course-image">
@@ -343,14 +348,16 @@ export default function Courses() {
                   </div>
                   <div className="course-level-tag">
                     <span className={`level-badge ${course.level?.toLowerCase() || 'beginner'}`}>
-                      {course.level || "Principiante"}
+                      {course.level === 'beginner' ? 'Principiante' : 
+                       course.level === 'intermediate' ? 'Intermedio' : 
+                       course.level === 'advanced' ? 'Avanzado' : 'Principiante'}
                     </span>
                   </div>
                 </div>
                 
                 <div className="course-content">
                   <h3 className="course-title">{course.title}</h3>
-                  
+
                   <div className="course-meta">
                     {user && (
                       <div className="meta-item">
@@ -364,6 +371,14 @@ export default function Courses() {
                       <span className="meta-icon">⏱️</span>
                       <span className="meta-text">
                         {course.duration || "Auto-guiado"}
+                      </span>
+                    </div>
+                    <div className="meta-item">
+                      <span className="meta-label">Nivel:</span>
+                      <span className="meta-text">
+                        {course.level === 'beginner' ? 'Principiante' : 
+                         course.level === 'intermediate' ? 'Intermedio' : 
+                         course.level === 'advanced' ? 'Avanzado' : 'Principiante'}
                       </span>
                     </div>
                   </div>
@@ -386,7 +401,7 @@ export default function Courses() {
                         ></div>
                       </div>
                       <div className="progress-stats">
-                        {prog.completed}/{prog.total} lecciones completadas
+                        {prog.completed} de {prog.total} lecciones completadas
                       </div>
                     </div>
                   )}
@@ -408,15 +423,47 @@ export default function Courses() {
                       </button>
                     )}
 
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => handleEnroll(course._id)}
-                    >
-                      <span className="btn-icon">
-                        {user ? "🎯" : "🔒"}
-                      </span>
-                      {user ? "Inscribirse" : "Acceder al Curso"}
-                    </button>
+                    {/* ✅ CORREGIDO: Mostrar botones según el estado */}
+                    {user ? (
+                      prog.percent > 0 ? (
+                        // Si tiene progreso, mostrar "Continuar"
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => navigate(`/courses/${course._id}/learn`)}
+                        >
+                          <span className="btn-icon">▶️</span>
+                          {prog.percent === 100 ? '🎉 Certificado' : 'Continuar'}
+                        </button>
+                      ) : userIsInstructor ? (
+                        // Si es instructor, mostrar "Gestionar"
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => navigate(`/courses/${course._id}/manage`)}
+                        >
+                          <span className="btn-icon">⚙️</span>
+                          Gestionar
+                        </button>
+                      ) : (
+                        // Si no tiene progreso y no es instructor, mostrar "Inscribirse"
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => handleEnroll(course._id)}
+                          disabled={isLoading}
+                        >
+                          <span className="btn-icon">🎯</span>
+                          {isLoading ? "Inscribiendo..." : "Inscribirse"}
+                        </button>
+                      )
+                    ) : (
+                      // Si no está logueado
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => navigate("/login")}
+                      >
+                        <span className="btn-icon">🔒</span>
+                        Acceder al Curso
+                      </button>
+                    )}
 
                     {user?.role === "admin" && (
                       <button

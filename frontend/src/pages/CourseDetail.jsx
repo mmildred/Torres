@@ -1,199 +1,316 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
 import { getUser } from "../auth";
+import "./CourseDetail.css";
+import CourseContents from "./CourseContents"; // Asegúrate de que el nombre del archivo sea correcto
 
 export default function CourseDetail() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const user = getUser();
+  const user = useMemo(() => getUser(), []);
 
   const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState(null);
-  const [contents, setContents] = useState([]);
-  const [progress, setProgress] = useState({ total: 0, completed: 0, percent: 0 });
   const [enrolled, setEnrolled] = useState(false);
-  const [stats, setStats] = useState(null); // solo owner/admin
-
-  const isOwnerOrAdmin = useMemo(() => {
-    const role = user?.role?.toLowerCase();
-    if (!course) return false;
-    return role === "admin" || String(course.owner?._id) === String(user?.id);
-  }, [course, user]);
+  const [progress, setProgress] = useState({
+    enrolled: false,
+    progress: 0,
+    completedContents: 0,
+    totalContents: 0
+  });
+  const [enrolling, setEnrolling] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 useEffect ejecutado, courseId:', courseId);
+    
     if (!user) {
-      navigate("/login", { replace: true, state: { message: "Inicia sesión" } });
+      console.log('❌ No hay usuario, redirigiendo a login');
+      navigate("/login");
       return;
     }
-    (async () => {
+
+    let isMounted = true;
+
+    const fetchCourseData = async () => {
       try {
         setLoading(true);
-        // 1) Curso + contenidos
-        const { data: detail } = await api.get(`/courses/${courseId}`);
-        setCourse(detail.course);
-        setContents(detail.contents || []);
-        // 2) Mi progreso (si soy alumno/profesor también responde)
-        const { data: prog } = await api.get(`/courses/${courseId}/progress/me`);
-        setProgress(prog);
-        // 3) Saber si ya estoy inscrito (heurística: si existe progreso o pídelo a enroll)
-        setEnrolled(true); // si tienes endpoint extra, cámbialo por el real
-        // 4) Stats solo para owner/admin
-        const role = user?.role?.toLowerCase();
-        if (role === "admin" || String(detail.course.owner?._id) === String(user?.id)) {
-          const { data: s } = await api.get(`/courses/${courseId}/stats`);
-          setStats(s);
+        
+        console.log('📥 Fetching course data for:', courseId);
+        
+        // 1) Obtener información del curso
+        const courseRes = await api.get(`/courses/${courseId}`);
+        if (!isMounted) return;
+        
+        setCourse(courseRes.data);
+        
+        // 2) Verificar progreso e inscripción
+        try {
+          const progressRes = await api.get(`/courses/${courseId}/progress/me`);
+          if (!isMounted) return;
+          
+          setProgress(progressRes.data);
+          setEnrolled(progressRes.data.enrolled);
+          console.log('✅ Datos cargados correctamente');
+        } catch (error) {
+          if (!isMounted) return;
+          // Error 404 significa que no está inscrito - normal
+          setEnrolled(false);
+          setProgress({
+            enrolled: false,
+            progress: 0,
+            completedContents: 0,
+            totalContents: courseRes.data.contents?.length || 0
+          });
         }
-      } catch (e) {
-        console.error(e);
+        
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('❌ Error cargando curso:', error);
+        
+        if (error.response?.status === 404) {
+          console.log('📭 Curso no encontrado, redirigiendo');
+          navigate('/courses');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    })();
-  }, [courseId, navigate, user]);
+    };
+
+    fetchCourseData();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [courseId, user, navigate]);
+
+  // ✅ FUNCIÓN PARA OBTENER CONTENIDOS VISIBLES
+  const getVisibleContents = () => {
+    if (!course || !course.contents) return [];
+    
+    const isInstructor = user && course && (
+      user.role === 'admin' || 
+      course.owner?._id.toString() === user._id.toString() ||
+      course.instructors?.some(instructor => 
+        instructor._id.toString() === user._id.toString()
+      )
+    );
+
+    // ✅ Instructores ven TODOS los contenidos
+    if (isInstructor) {
+      return course.contents;
+    }
+    
+    // ✅ Estudiantes solo ven contenidos PUBLICADOS
+    return course.contents.filter(content => 
+      content.isPublished === true
+    );
+  };
 
   const handleEnroll = async () => {
+    setEnrolling(true);
     try {
       await api.post(`/courses/${courseId}/enroll`);
       setEnrolled(true);
-      // refresca progreso
-      const { data: prog } = await api.get(`/courses/${courseId}/progress/me`);
-      setProgress(prog);
-      alert("Inscripción exitosa.");
-    } catch (e) {
-      console.error(e);
-      alert("No se pudo inscribir.");
+      // Recargar progreso después de inscribirse
+      const progressRes = await api.get(`/courses/${courseId}/progress/me`);
+      setProgress(progressRes.data);
+      alert("¡Inscripción exitosa! Ahora puedes comenzar el curso.");
+    } catch (error) {
+      console.error('Error inscribiéndose:', error);
+      if (error.response?.status === 400) {
+        alert('Ya estás inscrito en este curso');
+      } else {
+        alert('Error al inscribirse en el curso');
+      }
+    } finally {
+      setEnrolling(false);
     }
   };
 
-  const markCompleted = async (contentId) => {
-    try {
-      await api.post(`/courses/${courseId}/progress/complete`, { contentId });
-      const { data: prog } = await api.get(`/courses/${courseId}/progress/me`);
-      setProgress(prog);
-    } catch (e) {
-      console.error(e);
-      alert("No se pudo marcar como completado.");
-    }
-  };
+const handleContinue = () => {
+  navigate(`/courses/${courseId}/learn`);
+};
 
-  if (loading) return <div style={{ padding: 24 }}>Cargando curso…</div>;
-  if (!course) return <div style={{ padding: 24 }}>Curso no encontrado.</div>;
+  const isInstructor = user && course && (
+    user.role === 'admin' || 
+    course.owner?._id.toString() === user._id.toString() ||
+    course.instructors?.some(instructor => 
+      instructor._id.toString() === user._id.toString()
+    )
+  );
+
+  // ✅ Obtener contenidos visibles según el rol
+  const visibleContents = getVisibleContents();
+
+  if (loading) {
+    return (
+      <div className="course-detail-loading">
+        <div className="loading-spinner"></div>
+        <p>Cargando curso...</p>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="course-detail-error">
+        <h2>Curso no encontrado</h2>
+        <p>El curso que buscas no existe o no tienes acceso.</p>
+        <button onClick={() => navigate('/courses')}>Volver a cursos</button>
+      </div>
+    );
+  }
 
   return (
     <div className="course-detail">
-      <div className="cd-header">
-        <div className="cd-title-wrap">
-          <h1 className="cd-title">{course.title}</h1>
-          <p className="cd-sub">{course.description || "Sin descripción"}</p>
-          <div className="cd-meta">
-            <span className="cd-chip">{course.category || "General"}</span>
-            <span className="cd-chip">{course.level || "Principiante"}</span>
-            <span className="cd-owner">
-              Creado por: <strong>{course.owner?.name || "Administrador"}</strong>
-            </span>
+      {/* Header del curso */}
+      <div className="course-detail-header">
+        <button 
+          className="back-button"
+          onClick={() => navigate('/courses')}
+        >
+          ← Volver a cursos
+        </button>
+        
+        <div className="course-hero">
+          <div className="course-hero-image">
+            <img
+              src={course.thumbnail || "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"}
+              alt={course.title}
+              onError={(e) => {
+                e.target.src = "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80";
+              }}
+              loading="lazy"
+            />
+          </div>
+          
+          <div className="course-hero-content">
+            <div className="course-category-badge">
+              {course.category || "General"}
+            </div>
+            <h1 className="course-title">{course.title}</h1>
+            <p className="course-description">
+              {course.description || "Sin descripción disponible."}
+            </p>
+            
+            <div className="course-meta-grid">
+              <div className="meta-item">
+                <span className="meta-label">Creado por:</span>
+                <span className="meta-value">{course.owner?.name || "Administrador"}</span>
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Nivel:</span>
+                <span className="meta-value">{course.level || "Principiante"}</span>
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Duración:</span>
+                <span className="meta-value">{course.duration || "Auto-guiado"}</span>
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Contenidos:</span>
+                {/* ✅ Mostrar cantidad correcta según rol */}
+                <span className="meta-value">
+                  {isInstructor 
+                    ? `${course.contents?.length || 0} lecciones` 
+                    : `${visibleContents.length} lecciones disponibles`
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Acciones */}
+            <div className="course-actions">
+              {isInstructor ? (
+                <button
+                  className="manage-course-btn"
+                  onClick={() => navigate(`/courses/${courseId}/manage`)}
+                >
+                  Gestionar Curso
+                </button>
+              ) : enrolled ? (
+                <button
+                  className="continue-course-btn"
+                  onClick={handleContinue}
+                >
+                  {progress.progress === 100 ? '🎉 Ver Certificado' : '▶️ Continuar Curso'}
+                </button>
+              ) : (
+                <button
+                  className="enroll-course-btn"
+                  onClick={handleEnroll}
+                  disabled={enrolling}
+                >
+                  {enrolling ? 'Inscribiendo...' : 'Inscribirse en el Curso'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
-
-        <div className="cd-actions">
-          {!enrolled && (
-            <button className="cd-btn primary" onClick={handleEnroll}>
-              Inscribirme
-            </button>
-          )}
-          {isOwnerOrAdmin && (
-            <button className="cd-btn" onClick={() => navigate(`/courses/${courseId}/manage`)}>
-              Administrar contenido
-            </button>
-          )}
-        </div>
       </div>
 
-      <div className="cd-progress">
-        <div className="cd-progress-top">
-          <span>Progreso</span>
-          <strong>{progress.percent || 0}%</strong>
-        </div>
-        <div className="progress-bar">
-          <div style={{ width: `${progress.percent || 0}%` }} />
-        </div>
-        <div className="cd-progress-bottom">
-          {progress.completed}/{progress.total} contenidos completados
-        </div>
-      </div>
-
-      <div className="cd-body">
-        <h2 className="cd-section-title">Contenido del curso</h2>
-
-        {contents.length === 0 ? (
-          <div className="cd-empty">Aún no hay contenidos.</div>
-        ) : (
-          <ul className="content-list">
-            {contents.map((c) => (
-              <li key={c._id} className="content-item">
-                <div className="ci-main">
-                  <div className="ci-title">
-                    {c.title}
-                    <span className={`ci-type ${c.type}`}>{c.type}</span>
-                  </div>
-                  {c.type === "text" && c.text && (
-                    <p className="ci-text">{c.text.slice(0, 180)}{c.text.length > 180 ? "…" : ""}</p>
-                  )}
-                  {c.type === "link" && c.url && (
-                    <a className="ci-link" href={c.url} target="_blank" rel="noreferrer">
-                      Abrir recurso externo
-                    </a>
-                  )}
-                  {c.type === "file" && c.filePath && (
-                    <a className="ci-link" href={c.filePath} target="_blank" rel="noreferrer">
-                      Descargar/Ver archivo
-                    </a>
-                  )}
-                </div>
-                <div className="ci-actions">
-                  {user?.role?.toLowerCase() === "alumno" && (
-                    <button className="cd-btn small" onClick={() => markCompleted(c._id)}>
-                      Marcar completado
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {isOwnerOrAdmin && stats && (
-        <div className="cd-stats">
-          <h2 className="cd-section-title">Estadísticas del curso</h2>
-          <div className="cd-stats-summary">
-            <div><strong>Estudiantes:</strong> {stats.summary.students}</div>
-            <div><strong>Promedio avance:</strong> {stats.summary.avgPercent}%</div>
-            <div><strong>Completado 100%:</strong> {stats.summary.completedAll}</div>
+      {/* Progreso (solo para estudiantes inscritos) */}
+      {enrolled && (
+        <div className="progress-section">
+          <div className="progress-header">
+            <h3>Tu Progreso</h3>
+            <span className="progress-percent">{progress.progress}%</span>
           </div>
-          <div className="cd-table-wrap">
-            <table className="cd-table">
-              <thead>
-                <tr>
-                  <th>Alumno</th>
-                  <th>Email</th>
-                  <th>Completado</th>
-                  <th>Avance</th>
-                  <th>Último acceso</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.rows.map((r) => (
-                  <tr key={r.studentId}>
-                    <td>{r.name}</td>
-                    <td>{r.email}</td>
-                    <td>{r.completed}/{r.total}</td>
-                    <td>{r.percent}%</td>
-                    <td>{r.lastAccessAt ? new Date(r.lastAccessAt).toLocaleString() : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${progress.progress}%` }}
+            ></div>
+          </div>
+          <div className="progress-stats">
+            {progress.completedContents} de {progress.totalContents} lecciones completadas
+          </div>
+        </div>
+      )}
+
+      {/* ✅ COMPONENTE COURSE CONTENTS INTEGRADO */}
+      <CourseContents 
+        course={course} 
+        userRole={user?.role}
+        isEnrolled={enrolled}
+        isInstructor={isInstructor}
+      />
+
+      {/* Información para no inscritos */}
+      {!enrolled && !isInstructor && visibleContents.length > 0 && (
+        <div className="enrollment-cta">
+          <div className="cta-content">
+            <h3>¿Listo para comenzar?</h3>
+            <p>Inscríbete en este curso para acceder a {visibleContents.length} lecciones y comenzar tu aprendizaje.</p>
+            <button
+              className="cta-enroll-btn"
+              onClick={handleEnroll}
+              disabled={enrolling}
+            >
+              {enrolling ? 'Inscribiendo...' : 'Inscribirse Ahora'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Información para instructores sobre contenidos no publicados */}
+      {isInstructor && course.contents?.length > visibleContents.length && (
+        <div className="instructor-notice">
+          <div className="notice-content">
+            <h3>📝 Nota para instructores</h3>
+            <p>
+              Tienes {course.contents.length - visibleContents.length} contenido(s) en estado de borrador. 
+              Los estudiantes no pueden ver estos contenidos hasta que los publiques.
+            </p>
+            <button
+              className="manage-contents-btn"
+              onClick={() => navigate(`/courses/${courseId}/manage`)}
+            >
+              Gestionar Contenidos
+            </button>
           </div>
         </div>
       )}
