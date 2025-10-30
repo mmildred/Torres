@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { getUser } from "../auth";
@@ -6,11 +6,19 @@ import "./Courses.css";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
+  const [filteredCourses, setFilteredCourses] = useState([]);
   const [hasFetched, setHasFetched] = useState(false);
   const [progressByCourse, setProgressByCourse] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [categories, setCategories] = useState([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const user = getUser();
   const navigate = useNavigate();
   const [deletingById, setDeletingById] = useState({});
+  
+  // Referencias para controlar las peticiones
+  const progressRequestsRef = useRef(new Set());
+  const isFetchingProgressRef = useRef(false);
 
   const handleDeleteCourse = async (courseId) => {
     if (user?.role !== "admin") return;
@@ -45,7 +53,12 @@ export default function Courses() {
         owner: course.owner || { name: "Administrador" }
       }));
       setCourses(coursesWithOwner);
+      setFilteredCourses(coursesWithOwner);
       setHasFetched(true);
+      
+      // Extraer categorías únicas
+      const uniqueCategories = [...new Set(coursesWithOwner.map(course => course.category || "General"))];
+      setCategories(["all", ...uniqueCategories]);
     } catch (err) {
       console.error("Error cargando cursos:", err);
       setHasFetched(true);
@@ -58,32 +71,94 @@ export default function Courses() {
     }
   }, [hasFetched, fetchCourses]);
 
+  // Filtrar cursos por categoría
   useEffect(() => {
-    if (!user || !hasFetched || !courses.length) return;
+    if (selectedCategory === "all") {
+      setFilteredCourses(courses);
+    } else {
+      const filtered = courses.filter(course => 
+        course.category === selectedCategory || 
+        (!course.category && selectedCategory === "General")
+      );
+      setFilteredCourses(filtered);
+    }
+  }, [selectedCategory, courses]);
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const results = await Promise.all(
-          courses.map(async (c) => {
-            try {
-              const { data } = await api.get(`/courses/${c._id}/progress/me`);
-              return [c._id, data];
-            } catch {
-              return [c._id, { total: 0, completed: 0, percent: 0 }];
-            }
-          })
-        );
-        if (!cancelled) {
-          setProgressByCourse(Object.fromEntries(results));
-        }
-      } catch (e) {
-        console.error("Error cargando progreso por curso:", e);
+  // SOLUCIÓN DEFINITIVA: Cargar progreso solo una vez y manejar correctamente
+  useEffect(() => {
+    // Si no hay usuario o no hay cursos, no hacer nada
+    if (!user || courses.length === 0 || isFetchingProgressRef.current) {
+      return;
+    }
+
+    isFetchingProgressRef.current = true;
+    console.log("🔄 Iniciando carga de progreso para", courses.length, "cursos");
+
+    const fetchProgressForCourses = async () => {
+      const courseIds = courses.map(c => c._id);
+      
+      // Verificar qué cursos ya tienen progreso cargado
+      const existingProgressIds = Object.keys(progressByCourse);
+      const coursesToFetch = courseIds.filter(id => !existingProgressIds.includes(id));
+      
+      if (coursesToFetch.length === 0) {
+        console.log("✅ Todos los cursos ya tienen progreso cargado");
+        isFetchingProgressRef.current = false;
+        return;
       }
-    })();
 
-    return () => { cancelled = true; };
-  }, [user, hasFetched, courses]);
+      console.log("📥 Cargando progreso para cursos:", coursesToFetch);
+
+      try {
+        const progressPromises = coursesToFetch.map(async (courseId) => {
+          // Evitar peticiones duplicadas
+          if (progressRequestsRef.current.has(courseId)) {
+            return null;
+          }
+          
+          progressRequestsRef.current.add(courseId);
+          
+          try {
+            const { data } = await api.get(`/courses/${courseId}/progress/me`);
+            return [courseId, data];
+          } catch (error) {
+            // Si hay error 404, significa que no hay progreso para este curso
+            if (error.response?.status === 404) {
+              console.log(`📭 No hay progreso para el curso ${courseId}`);
+              return [courseId, { total: 0, completed: 0, percent: 0 }];
+            }
+            console.warn(`⚠️ Error cargando progreso para ${courseId}:`, error.message);
+            return [courseId, { total: 0, completed: 0, percent: 0 }];
+          } finally {
+            progressRequestsRef.current.delete(courseId);
+          }
+        });
+
+        const results = await Promise.all(progressPromises);
+        const validResults = results.filter(result => result !== null);
+        
+        if (validResults.length > 0) {
+          setProgressByCourse(prev => ({
+            ...prev,
+            ...Object.fromEntries(validResults)
+          }));
+          console.log("✅ Progreso actualizado para", validResults.length, "cursos");
+        }
+        
+      } catch (error) {
+        console.error("❌ Error general cargando progreso:", error);
+      } finally {
+        isFetchingProgressRef.current = false;
+      }
+    };
+
+    fetchProgressForCourses();
+
+    // Cleanup
+    return () => {
+      isFetchingProgressRef.current = false;
+    };
+  }, [user, courses.length]); // Solo dependemos de courses.length, no del array completo
 
   const handleViewDetails = (courseId) => {
     navigate(`/courses/${courseId}`);
@@ -124,11 +199,10 @@ export default function Courses() {
       <div className="courses-header">
         <h2 className="title">Catálogo de Cursos</h2>
         <p className="subtitle">
-          Explora nuestra selección de cursos especializados
+          Explora nuestra selección de cursos especializados organizados por categorías
         </p>  
         
-        {/* Solo mostrar botón de crear curso si está logueado y es teacher/admin */}
-        {user && (user?.role === "teacher" || user?.role === "admin") && (
+        {(user?.role === "teacher" || user?.role === "admin") && (
           <button
             className="create-btn"
             onClick={() => navigate("/courses/new")}
@@ -139,7 +213,6 @@ export default function Courses() {
           </button>
         )}
 
-        {/* Banner para usuarios no logueados */}
         {!user && (
           <div className="guest-banner">
             <div className="guest-banner-content">
@@ -164,19 +237,96 @@ export default function Courses() {
         )}
       </div>
 
+      {/* Filtros de categorías - Toggle Desplegable */}
+      <div className="categories-filter-toggle">
+        <button 
+          className="filter-toggle-btn"
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+        >
+          <span className="filter-icon">⚙️</span>
+          Filtrar por categoría
+          <span className={`toggle-arrow ${isFilterOpen ? 'open' : ''}`}>
+            ▼
+          </span>
+        </button>
+        
+        {isFilterOpen && (
+          <div className="filter-dropdown">
+            <div className="filter-header">
+              <h4>Selecciona una categoría</h4>
+              <button 
+                className="close-filter"
+                onClick={() => setIsFilterOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="filter-options">
+              {categories.map(category => (
+                <button
+                  key={category}
+                  className={`filter-option ${selectedCategory === category ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedCategory(category);
+                    setIsFilterOpen(false);
+                  }}
+                >
+                  <span className="option-name">
+                    {category === "all" ? "Todos los cursos" : category}
+                  </span>
+                  <span className="option-count">
+                    {category === "all" 
+                      ? courses.length 
+                      : courses.filter(c => c.category === category || (!c.category && category === "General")).length
+                    }
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Información de la categoría seleccionada */}
+      {selectedCategory !== "all" && (
+        <div className="category-info">
+          <div className="category-header">
+            <div>
+              <h3>{selectedCategory}</h3>
+              <p>
+                {filteredCourses.length} curso{filteredCourses.length !== 1 ? 's' : ''} disponible{filteredCourses.length !== 1 ? 's' : ''} en esta categoría
+              </p>
+            </div>
+            <button 
+              className="clear-filter"
+              onClick={() => setSelectedCategory("all")}
+            >
+              Ver todos
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="courses-grid">
-        {courses.length === 0 && hasFetched ? (
+        {filteredCourses.length === 0 && hasFetched ? (
           <div className="empty-state">
-            <div className="empty-icon">📚</div>
-            <h3>No hay cursos disponibles</h3>
-            <p>Pronto agregaremos nuevos cursos a nuestro catálogo</p>
+            <div className="empty-icon">🔍</div>
+            <h3>No hay cursos en esta categoría</h3>
+            <p>Pronto agregaremos nuevos cursos a {selectedCategory !== "all" ? "esta categoría" : "nuestro catálogo"}</p>
+            {selectedCategory !== "all" && (
+              <button 
+                className="btn-primary"
+                onClick={() => setSelectedCategory("all")}
+              >
+                Ver todos los cursos
+              </button>
+            )}
           </div>
         ) : (
-          courses.map((course) => {
+          filteredCourses.map((course) => {
             const prog = progressByCourse[course._id] || { total: 0, completed: 0, percent: 0 };
             return (
               <div key={course._id} className="course-card">
-                {/* Header de la card con imagen y categoría */}
                 <div className="course-image">
                   <img
                     src={
@@ -198,12 +348,10 @@ export default function Courses() {
                   </div>
                 </div>
                 
-                {/* Contenido de la card */}
                 <div className="course-content">
                   <h3 className="course-title">{course.title}</h3>
                   
                   <div className="course-meta">
-                    {/* SOLO MOSTRAR INSTRUCTOR SI ESTÁ LOGUEADO */}
                     {user && (
                       <div className="meta-item">
                         <span className="meta-icon">👤</span>
@@ -225,7 +373,6 @@ export default function Courses() {
                     {course.description && course.description.length > 120 ? "..." : ""}
                   </p>
 
-                  {/* Progreso - solo para usuarios logueados */}
                   {user && prog.percent > 0 && (
                     <div className="progress-container">
                       <div className="progress-header">
@@ -244,16 +391,13 @@ export default function Courses() {
                     </div>
                   )}
 
-                  {/* Mensaje para usuarios no logueados */}
                   {!user && (
                     <div className="guest-prompt">
                       <p>Inicia sesión para acceder a este curso</p>
                     </div>
                   )}
 
-                  {/* Acciones */}
                   <div className="course-actions">
-                    {/* SOLO MOSTRAR "VER DETALLES" SI ESTÁ LOGUEADO */}
                     {user && (
                       <button 
                         className="btn btn-secondary"
@@ -274,7 +418,6 @@ export default function Courses() {
                       {user ? "Inscribirse" : "Acceder al Curso"}
                     </button>
 
-                    {/* Botón de eliminar solo para admin logueado */}
                     {user?.role === "admin" && (
                       <button
                         className="btn btn-danger"
