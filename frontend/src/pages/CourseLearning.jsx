@@ -1,4 +1,4 @@
-// CourseLearning.jsx - DISEÑO MEJORADO
+// CourseLearning.jsx - VERSIÓN MEJORADA
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
@@ -15,6 +15,7 @@ export default function CourseLearning() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeContent, setActiveContent] = useState(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     console.log('🔄 CourseLearning iniciado para curso:', courseId);
@@ -60,29 +61,63 @@ export default function CourseLearning() {
     }
   };
 
+  // ✅ FUNCIÓN REAL PARA MARCAR COMO COMPLETADO
   const handleMarkComplete = async (contentId) => {
     try {
+      setUpdating(true);
       console.log('🔄 Marcando contenido como completado:', contentId);
       
-      // Simulación temporal de completado
-      const updatedEnrollment = {
-        ...enrollment,
-        completedContents: (enrollment.completedContents || 0) + 1,
-        progress: Math.min(100, ((enrollment.completedContents || 0) + 1) / (enrollment.totalContents || 1) * 100)
-      };
+      // ✅ LLAMADA REAL A LA API
+      const response = await api.post(`/courses/${courseId}/contents/${contentId}/complete`);
       
-      setEnrollment(updatedEnrollment);
+      console.log('✅ Contenido marcado como completado:', response.data);
       
-      alert('🎉 Contenido marcado como completado (Demo)');
+      // ✅ ACTUALIZAR EL ESTADO CON LA RESPUESTA REAL DEL BACKEND
+      setEnrollment(prev => ({
+        ...prev,
+        progress: response.data.progress,
+        completedContents: response.data.completedContents,
+        totalContents: response.data.totalContents
+      }));
+      
+      // ✅ RECARGAR LOS DATOS PARA VERIFICAR
+      await fetchCourseData();
       
     } catch (error) {
-      console.error('Error:', error);
-      alert('Funcionalidad en desarrollo');
+      console.error('❌ Error marcando contenido como completado:', error);
+      
+      if (error.response?.status === 401) {
+        alert('Debes iniciar sesión para completar contenidos');
+        navigate('/login');
+      } else {
+        alert(error.response?.data?.message || 'Error al marcar como completado');
+      }
+    } finally {
+      setUpdating(false);
     }
   };
 
+  // ✅ FUNCIÓN PARA VERIFICAR SI UN CONTENIDO ESTÁ COMPLETADO
+  const isContentCompleted = (contentId) => {
+    if (!enrollment?.completedContentIds) return false;
+    
+    // Buscar en el array de completedContentIds
+    return enrollment.completedContentIds.some(id => 
+      id.toString() === contentId.toString()
+    );
+  };
+
+  // ✅ VERIFICAR SI EL CURSO ESTÁ COMPLETADO AL 100%
+  const isCourseCompleted = enrollment?.progress === 100;
+
   const handleContentClick = (content) => {
     setActiveContent(content);
+  };
+
+  // ✅ FUNCIÓN PARA MOSTRAR CERTIFICADO
+  const handleShowCertificate = () => {
+    alert('🎉 ¡Felicidades! Has completado el curso. Tu certificado estará disponible próximamente.');
+    // Aquí puedes redirigir a una página de certificado cuando la implementes
   };
 
   if (loading) {
@@ -136,7 +171,7 @@ export default function CourseLearning() {
 
   const visibleContents = course.contents?.filter(content => content.isPublished === true) || [];
   const progress = enrollment?.progress || 0;
-  const completedContents = enrollment?.completedContents || 0;
+  const completedContents = enrollment?.completedContents || enrollment?.completedContentIds?.length || 0;
   const totalContents = enrollment?.totalContents || visibleContents.length;
 
   return (
@@ -166,6 +201,19 @@ export default function CourseLearning() {
               <small>Tu progreso en el curso</small>
             </div>
           </div>
+
+          {/* ✅ MOSTRAR BOTÓN DE CERTIFICADO SI ESTÁ COMPLETADO */}
+          {isCourseCompleted && (
+            <div className="certificate-section">
+              <div className="certificate-badge">🏆 Curso Completado</div>
+              <button 
+                className="certificate-btn"
+                onClick={handleShowCertificate}
+              >
+                🎉 Ver Certificado
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -174,106 +222,136 @@ export default function CourseLearning() {
         <div className="contents-sidebar">
           <h3>📚 Contenidos del Curso</h3>
           <div className="contents-list">
-            {visibleContents.map((content, index) => (
-              <div
-                key={content._id}
-                className={`content-item ${activeContent?._id === content._id ? 'active' : ''} ${completedContents > index ? 'completed' : ''}`}
-                onClick={() => handleContentClick(content)}
-              >
-                <div className="content-number">
-                  {index + 1}
-                </div>
-                <div className="content-info">
-                  <h4>{content.title}</h4>
-                  <div className="content-type">
-                    {content.type || 'Lección'} 
-                    {completedContents > index && (
-                      <span className="content-status">✅ Completado</span>
-                    )}
+            {visibleContents.map((content, index) => {
+              const isCompleted = isContentCompleted(content._id);
+              
+              return (
+                <div
+                  key={content._id}
+                  className={`content-item ${activeContent?._id === content._id ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                  onClick={() => handleContentClick(content)}
+                >
+                  <div className="content-number">
+                    {index + 1}
+                  </div>
+                  <div className="content-info">
+                    <h4>{content.title}</h4>
+                    <div className="content-type">
+                      {content.type || 'Lección'} 
+                      {isCompleted && (
+                        <span className="content-status">✅ Completado</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Área Principal de Contenido */}
         <div className="content-viewer">
-          <div className="welcome-section">
-            <h2>🎓 ¡Bienvenido al Modo de Aprendizaje!</h2>
-            <p style={{color: '#718096', fontSize: '1.1rem'}}>
-              Estás a punto de comenzar tu viaje de aprendizaje en <strong>{course.title}</strong>
-            </p>
-            
-            <div className="course-stats">
-              <div className="stat-card">
-                <span className="stat-value">{progress}%</span>
-                <span className="stat-label">Progreso Total</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-value">{completedContents}/{totalContents}</span>
-                <span className="stat-label">Lecciones</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-value">
-                  {totalContents > 0 ? Math.ceil(totalContents * 0.5) : 0}h
-                </span>
-                <span className="stat-label">Duración estimada</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Próximas Funcionalidades */}
-          <div>
-            <h3 style={{marginBottom: '1.5rem', color: '#2d3748'}}>🚀 Próximas Funcionalidades</h3>
-            <div className="features-grid">
-              <div className="feature-card">
-                <h4>📖 Contenidos Interactivos</h4>
-                <p>Lecciones multimedia con videos, textos y ejercicios prácticos</p>
-              </div>
-              <div className="feature-card">
-                <h4>✅ Seguimiento de Progreso</h4>
-                <p>Monitorea tu avance en tiempo real con métricas detalladas</p>
-              </div>
-              <div className="feature-card">
-                <h4>🏆 Sistema de Logros</h4>
-                <p>Desbloquea insignias y certificados por tus logros</p>
-              </div>
-              <div className="feature-card">
-                <h4>💬 Comunidad</h4>
-                <p>Interactúa con otros estudiantes y instructores</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Lista de Contenidos Disponibles */}
-          <div className="contents-grid">
-            <h3 style={{color: '#2d3748', marginBottom: '1rem'}}>
-              📋 Contenidos Disponibles ({visibleContents.length})
-            </h3>
-            
-            {visibleContents.map((content, index) => (
-              <div key={content._id} className="content-card">
-                <div className="content-header">
-                  <h3>{index + 1}. {content.title}</h3>
-                  <span className="content-badge">
-                    {content.type || 'Lección'}
-                  </span>
+          {/* ✅ MOSTRAR MENSAJE DE FELICITACIONES SI EL CURSO ESTÁ COMPLETADO */}
+          {isCourseCompleted ? (
+            <div className="course-completed-section">
+              <div className="completion-celebration">
+                <div className="celebration-icon">🎉</div>
+                <h2>¡Felicidades! Has completado el curso</h2>
+                <p>Has terminado todas las lecciones de <strong>{course.title}</strong></p>
+                <div className="completion-stats">
+                  <div className="completion-stat">
+                    <span className="stat-number">{completedContents}</span>
+                    <span className="stat-label">Lecciones completadas</span>
+                  </div>
+                  <div className="completion-stat">
+                    <span className="stat-number">100%</span>
+                    <span className="stat-label">Progreso total</span>
+                  </div>
                 </div>
-                
-                <div className="content-description">
-                  {content.description || 'Descripción del contenido próximamente...'}
-                </div>
-                
                 <button 
-                  className="demo-btn"
-                  onClick={() => handleMarkComplete(content._id)}
+                  className="certificate-btn-large"
+                  onClick={handleShowCertificate}
                 >
-                  🎯 Marcar como Completado (Demo)
+                  🏆 Obtener Certificado
+                </button>
+                <button 
+                  className="review-course-btn"
+                  onClick={() => navigate(`/courses/${courseId}`)}
+                >
+                  🔄 Revisar Curso
                 </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <>
+              <div className="welcome-section">
+                <h2>🎓 ¡Bienvenido al Modo de Aprendizaje!</h2>
+                <p style={{color: '#718096', fontSize: '1.1rem'}}>
+                  Estás a punto de comenzar tu viaje de aprendizaje en <strong>{course.title}</strong>
+                </p>
+                
+                <div className="course-stats">
+                  <div className="stat-card">
+                    <span className="stat-value">{progress}%</span>
+                    <span className="stat-label">Progreso Total</span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-value">{completedContents}/{totalContents}</span>
+                    <span className="stat-label">Lecciones</span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-value">
+                      {totalContents > 0 ? Math.ceil(totalContents * 0.5) : 0}h
+                    </span>
+                    <span className="stat-label">Duración estimada</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de Contenidos Disponibles */}
+              <div className="contents-grid">
+                <h3 style={{color: '#2d3748', marginBottom: '1rem'}}>
+                  📋 Contenidos Disponibles ({visibleContents.length})
+                </h3>
+                
+                {visibleContents.map((content, index) => {
+                  const isCompleted = isContentCompleted(content._id);
+                  
+                  return (
+                    <div key={content._id} className="content-card">
+                      <div className="content-header">
+                        <h3>
+                          {index + 1}. {content.title}
+                          {isCompleted && <span style={{color: '#28a745', marginLeft: '10px'}}>✅ Completado</span>}
+                        </h3>
+                        <span className="content-badge">
+                          {content.type || 'Lección'}
+                        </span>
+                      </div>
+                      
+                      <div className="content-description">
+                        {content.description || 'Descripción del contenido próximamente...'}
+                      </div>
+                      
+                      {!isCompleted ? (
+                        <button 
+                          className="complete-btn"
+                          onClick={() => handleMarkComplete(content._id)}
+                          disabled={updating}
+                        >
+                          {updating ? '🔄 Procesando...' : '🎯 Marcar como Completado'}
+                        </button>
+                      ) : (
+                        <div className="completed-message">
+                          ✅ Ya completaste este contenido - <strong>¡Buen trabajo!</strong>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

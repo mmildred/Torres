@@ -1,66 +1,77 @@
-// pages/MyCourses.jsx
+// pages/MyCourses.jsx - VERSIÓN CORREGIDA
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
-import { getUser } from "../auth";
+import { isAuthenticated } from "../auth"; // ✅ Importar la nueva función
 import "./MyCourses.css";
 
 export default function MyCourses() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all"); // all, in-progress, completed
-  const user = getUser();
+  const [filter, setFilter] = useState("all");
   const navigate = useNavigate();
 
+  // ✅ useEffect simplificado y seguro
   useEffect(() => {
-    if (!user) {
+    // Verificar autenticación inmediatamente
+    if (!isAuthenticated()) {
       navigate("/login");
       return;
     }
-    fetchMyCourses();
-  }, [user, navigate]);
 
-  const fetchMyCourses = async () => {
-    try {
-      setLoading(true);
-      
-      // Obtener todos los cursos
-      const allCoursesRes = await api.get("/courses");
-      const allCourses = allCoursesRes.data;
+    // Función para cargar cursos
+    const loadCourses = async () => {
+      try {
+        setLoading(true);
+        
+        // Obtener todos los cursos
+        const allCoursesRes = await api.get("/courses");
+        const allCourses = allCoursesRes.data;
 
-      // Obtener progreso de cada curso
-      const coursesWithProgress = await Promise.all(
-        allCourses.map(async (course) => {
-          try {
-            const progressRes = await api.get(`/courses/${course._id}/progress/me`);
-            return {
-              ...course,
-              progress: progressRes.data,
-              isEnrolled: progressRes.data.enrolled
-            };
-          } catch (error) {
-            // Si hay error 404, no está inscrito
-            return {
-              ...course,
-              progress: { enrolled: false, progress: 0, completedContents: 0, totalContents: 0 },
-              isEnrolled: false
-            };
-          }
-        })
-      );
+        // Obtener progreso de cada curso
+        const coursesWithProgress = await Promise.all(
+          allCourses.map(async (course) => {
+            try {
+              const progressRes = await api.get(`/courses/${course._id}/progress/me`);
+              return {
+                ...course,
+                progress: progressRes.data,
+                isEnrolled: progressRes.data.enrolled
+              };
+            } catch (error) {
+              // Si hay error 404, no está inscrito
+              return {
+                ...course,
+                progress: { 
+                  enrolled: false, 
+                  progress: 0, 
+                  completedContents: 0, 
+                  totalContents: course.contents?.length || 0 
+                },
+                isEnrolled: false
+              };
+            }
+          })
+        );
 
-      // Filtrar solo los cursos en los que está inscrito
-      const enrolledCourses = coursesWithProgress.filter(course => course.isEnrolled);
-      
-      setCourses(enrolledCourses);
-    } catch (error) {
-      console.error("Error cargando mis cursos:", error);
-      alert("Error al cargar tus cursos");
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Filtrar solo los cursos en los que está inscrito
+        const enrolledCourses = coursesWithProgress.filter(course => course.isEnrolled);
+        setCourses(enrolledCourses);
+        
+      } catch (error) {
+        console.error("Error cargando mis cursos:", error);
+        if (error.response?.status === 401) {
+          navigate("/login");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    loadCourses();
+  }, [navigate]); // ✅ Solo depende de navigate
+
+  // ... el resto de tu componente permanece igual
   const getFilteredCourses = () => {
     switch (filter) {
       case "in-progress":
@@ -82,6 +93,10 @@ export default function MyCourses() {
     navigate(`/courses/${courseId}`);
   };
 
+  const handleImageError = (e) => {
+    e.target.src = "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+  };
+
   if (loading) {
     return (
       <div className="my-courses-loading">
@@ -95,6 +110,7 @@ export default function MyCourses() {
 
   return (
     <div className="my-courses">
+      {/* ... el resto de tu JSX */}
       <div className="my-courses-header">
         <h1>Mis Cursos</h1>
         <p>Gestiona y continúa tu aprendizaje</p>
@@ -175,11 +191,10 @@ export default function MyCourses() {
               <div key={course._id} className="course-card">
                 <div className="course-image">
                   <img
-                    src={course.thumbnail || "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"}
+                    src={course.thumbnail || "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"}
                     alt={course.title}
-                    onError={(e) => {
-                      e.target.src = "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80";
-                    }}
+                    onError={handleImageError}
+                    loading="lazy"
                   />
                   <div className="course-category">
                     {course.category || "General"}

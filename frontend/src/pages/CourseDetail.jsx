@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useMemo } from "react";
+// CourseDetail.jsx - VERSIÓN OPTIMIZADA
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
 import { getUser } from "../auth";
 import "./CourseDetail.css";
-import CourseContents from "./CourseContents"; // Asegúrate de que el nombre del archivo sea correcto
+import CourseContents from "./CourseContents";
 
 export default function CourseDetail() {
   const { courseId } = useParams();
@@ -20,10 +21,15 @@ export default function CourseDetail() {
     totalContents: 0
   });
   const [enrolling, setEnrolling] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // ✅ FUNCIÓN PARA FORZAR ACTUALIZACIÓN
+  const refreshCourseData = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  // ✅ MOVER fetchCourseData DENTRO DEL useEffect PARA EVITAR DEPENDENCIAS
   useEffect(() => {
-    console.log('🔄 useEffect ejecutado, courseId:', courseId);
-    
     if (!user) {
       console.log('❌ No hay usuario, redirigiendo a login');
       navigate("/login");
@@ -79,23 +85,24 @@ export default function CourseDetail() {
       }
     };
 
+    console.log('🔄 useEffect ejecutado, courseId:', courseId, 'refresh:', refreshTrigger);
     fetchCourseData();
 
     // Cleanup function
     return () => {
       isMounted = false;
     };
-  }, [courseId, user, navigate]);
+  }, [courseId, user, navigate, refreshTrigger]); // ✅ Solo estas dependencias
 
   // ✅ FUNCIÓN PARA OBTENER CONTENIDOS VISIBLES
-  const getVisibleContents = () => {
+  const getVisibleContents = useCallback(() => {
     if (!course || !course.contents) return [];
     
     const isInstructor = user && course && (
       user.role === 'admin' || 
-      course.owner?._id.toString() === user._id.toString() ||
+      course.owner?._id?.toString() === user._id?.toString() ||
       course.instructors?.some(instructor => 
-        instructor._id.toString() === user._id.toString()
+        instructor._id?.toString() === user._id?.toString()
       )
     );
 
@@ -108,7 +115,7 @@ export default function CourseDetail() {
     return course.contents.filter(content => 
       content.isPublished === true
     );
-  };
+  }, [course, user]);
 
   const handleEnroll = async () => {
     setEnrolling(true);
@@ -119,6 +126,9 @@ export default function CourseDetail() {
       const progressRes = await api.get(`/courses/${courseId}/progress/me`);
       setProgress(progressRes.data);
       alert("¡Inscripción exitosa! Ahora puedes comenzar el curso.");
+      
+      // ✅ FORZAR ACTUALIZACIÓN DESPUÉS DE INSCRIBIRSE
+      refreshCourseData();
     } catch (error) {
       console.error('Error inscribiéndose:', error);
       if (error.response?.status === 400) {
@@ -131,15 +141,15 @@ export default function CourseDetail() {
     }
   };
 
-const handleContinue = () => {
-  navigate(`/courses/${courseId}/learn`);
-};
+  const handleContinue = () => {
+    navigate(`/courses/${courseId}/learn`);
+  };
 
   const isInstructor = user && course && (
     user.role === 'admin' || 
-    course.owner?._id.toString() === user._id.toString() ||
+    course.owner?._id?.toString() === user._id?.toString() ||
     course.instructors?.some(instructor => 
-      instructor._id.toString() === user._id.toString()
+      instructor._id?.toString() === user._id?.toString()
     )
   );
 
@@ -204,7 +214,11 @@ const handleContinue = () => {
               </div>
               <div className="meta-item">
                 <span className="meta-label">Nivel:</span>
-                <span className="meta-value">{course.level || "Principiante"}</span>
+                <span className="meta-value">
+                  {course.level === 'beginner' ? 'Principiante' : 
+                   course.level === 'intermediate' ? 'Intermedio' : 
+                   course.level === 'advanced' ? 'Avanzado' : 'Principiante'}
+                </span>
               </div>
               <div className="meta-item">
                 <span className="meta-label">Duración:</span>
@@ -212,7 +226,6 @@ const handleContinue = () => {
               </div>
               <div className="meta-item">
                 <span className="meta-label">Contenidos:</span>
-                {/* ✅ Mostrar cantidad correcta según rol */}
                 <span className="meta-value">
                   {isInstructor 
                     ? `${course.contents?.length || 0} lecciones` 
@@ -222,6 +235,19 @@ const handleContinue = () => {
               </div>
             </div>
 
+            {/* Estado del curso */}
+            <div className="course-status">
+              {!course.isPublished && (
+                <div className="status-badge draft">📝 Borrador</div>
+              )}
+              {isInstructor && (
+                <div className="status-badge instructor">👨‍🏫 Eres instructor</div>
+              )}
+              {enrolled && (
+                <div className="status-badge enrolled">✅ Inscrito</div>
+              )}
+            </div>
+
             {/* Acciones */}
             <div className="course-actions">
               {isInstructor ? (
@@ -229,7 +255,7 @@ const handleContinue = () => {
                   className="manage-course-btn"
                   onClick={() => navigate(`/courses/${courseId}/manage`)}
                 >
-                  Gestionar Curso
+                  🛠️ Gestionar Curso
                 </button>
               ) : enrolled ? (
                 <button
@@ -244,9 +270,19 @@ const handleContinue = () => {
                   onClick={handleEnroll}
                   disabled={enrolling}
                 >
-                  {enrolling ? 'Inscribiendo...' : 'Inscribirse en el Curso'}
+                  {enrolling ? '⏳ Inscribiendo...' : '🎯 Inscribirse en el Curso'}
                 </button>
               )}
+
+              {/* ✅ BOTÓN PARA ACTUALIZAR MANUALMENTE */}
+              <button
+                className="refresh-btn"
+                onClick={refreshCourseData}
+                disabled={loading}
+                title="Actualizar información del curso"
+              >
+                {loading ? '⏳' : '🔄'} Actualizar
+              </button>
             </div>
           </div>
         </div>
@@ -268,6 +304,11 @@ const handleContinue = () => {
           <div className="progress-stats">
             {progress.completedContents} de {progress.totalContents} lecciones completadas
           </div>
+          {progress.progress === 100 && (
+            <div className="completion-message">
+              🎉 ¡Felicidades! Has completado este curso.
+            </div>
+          )}
         </div>
       )}
 
@@ -277,6 +318,7 @@ const handleContinue = () => {
         userRole={user?.role}
         isEnrolled={enrolled}
         isInstructor={isInstructor}
+        onContentUpdated={refreshCourseData}
       />
 
       {/* Información para no inscritos */}
@@ -290,7 +332,7 @@ const handleContinue = () => {
               onClick={handleEnroll}
               disabled={enrolling}
             >
-              {enrolling ? 'Inscribiendo...' : 'Inscribirse Ahora'}
+              {enrolling ? '⏳ Inscribiendo...' : '🚀 Inscribirse Ahora'}
             </button>
           </div>
         </div>
@@ -302,14 +344,14 @@ const handleContinue = () => {
           <div className="notice-content">
             <h3>📝 Nota para instructores</h3>
             <p>
-              Tienes {course.contents.length - visibleContents.length} contenido(s) en estado de borrador. 
+              Tienes <strong>{course.contents.length - visibleContents.length}</strong> contenido(s) en estado de borrador. 
               Los estudiantes no pueden ver estos contenidos hasta que los publiques.
             </p>
             <button
               className="manage-contents-btn"
               onClick={() => navigate(`/courses/${courseId}/manage`)}
             >
-              Gestionar Contenidos
+              🛠️ Gestionar Contenidos
             </button>
           </div>
         </div>

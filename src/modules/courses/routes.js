@@ -19,23 +19,20 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
-// ✅ RUTA PRINCIPAL MODIFICADA - FILTRAR POR PUBLICACIÓN
-r.get('/', auth(), async (req, res) => {
+r.get('/', async (req, res) => {
   try {
-    let filter = {};
+    let filter = { isPublished: true }; // Solo cursos publicados por defecto
     
-    // Si es estudiante o no autenticado, mostrar solo cursos publicados
-    if (!req.user || req.user.role === 'student') {
-      filter.isPublished = true;
-    }
-    
-    // Si es instructor o admin, mostrar sus cursos + cursos publicados
-    if (req.user && (req.user.role === 'teacher' || req.user.role === 'admin')) {
-      filter.$or = [
-        { 'owner._id': req.user.id },
-        { 'instructors._id': req.user.id },
-        { isPublished: true }
-      ];
+    // Si hay usuario autenticado, aplicar filtros adicionales
+    if (req.user) {
+      if (req.user.role === 'teacher' || req.user.role === 'admin') {
+        filter.$or = [
+          { 'owner._id': req.user.id },
+          { 'instructors._id': req.user.id },
+          { isPublished: true }
+        ];
+      }
+      // Para estudiantes, mantener solo cursos publicados (no cambia)
     }
 
     const list = await Course.find(filter).sort({ createdAt: -1 });
@@ -352,31 +349,30 @@ r.patch('/:courseId/unpublish', auth('teacher'), async (req, res) => {
 });
 
 // ✅ RUTA DE PROGRESO CORREGIDA
+
 r.get('/:courseId/progress/me', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
-    const userId = req.user.id; // Cambiado de studentId a userId
+    const userId = req.user.id;
 
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // ✅ VERIFICAR QUE EL ESTUDIANTE TENGA ACCESO AL CURSO
-    if (!course.isPublished) {
-      return res.status(403).json({ message: 'No tienes acceso a este curso' });
-    }
-
     const enrollment = await Enrollment.findOne({
       courseId: courseId,
-      userId: userId // Cambiado aquí también
+      userId: userId
     });
 
+    // ✅ MEJORAR: DEVOLVER 200 CON enrolled: false EN LUGAR DE 404
     if (!enrollment) {
-      return res.status(404).json({ 
-        message: 'No estás inscrito en este curso',
+      return res.status(200).json({
         enrolled: false,
-        progress: 0
+        progress: 0,
+        completedContents: 0,
+        totalContents: course.contents?.length || 0,
+        message: 'No estás inscrito en este curso'
       });
     }
 
