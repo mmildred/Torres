@@ -11,18 +11,31 @@ export default function Courses() {
   const [loadingStates, setLoadingStates] = useState({});
   const user = getUser();
   const navigate = useNavigate();
+  const [deletingById, setDeletingById] = useState({});
 
-  // Función para verificar si el usuario es instructor de un curso específico
-  const isCourseInstructor = (course) => {
-    if (!user) return false;
+  const handleDeleteCourse = async (courseId) => {
+    if (user?.role !== "admin") return;
+    const ok = window.confirm("¿Seguro que deseas borrar este curso? Esta acción no se puede deshacer.");
+    if (!ok) return;
 
-    const isAdmin = user.role === 'admin';
-    const isOwner = course.owner?._id.toString() === user._id.toString(); // ← user._id
-    const isInstructor = course.instructors?.some(instructor =>
-      instructor._id.toString() === user._id.toString() // ← user._id
-    );
+    try {
+      setDeletingById(prev => ({ ...prev, [courseId]: true }));
+      await api.delete(`/courses/${courseId}`);
 
-    return isAdmin || isOwner || isInstructor;
+      setCourses(prev => prev.filter(c => c._id !== courseId));
+      setProgressByCourse(prev => {
+        const clone = { ...prev };
+        delete clone[courseId];
+        return clone;
+      });
+
+      alert("Curso eliminado correctamente.");
+    } catch (err) {
+      console.error("Error al eliminar curso:", err);
+      alert("No se pudo eliminar el curso.");
+    } finally {
+      setDeletingById(prev => ({ ...prev, [courseId]: false }));
+    }
   };
 
   const fetchCourses = useCallback(async () => {
@@ -42,152 +55,72 @@ export default function Courses() {
     }
   }, []);
 
-  // Cargar cursos y progreso
-  // En Courses.jsx, actualiza la carga de progreso:
-useEffect(() => {
-  const loadCoursesAndProgress = async () => {
-    if (!user) return;
-
-    try {
-      const coursesResponse = await api.get('/courses');
-      const coursesData = coursesResponse.data;
-
-      const coursesWithProgress = await Promise.all(
-        coursesData.map(async (course) => {
-          const isInstructor = isCourseInstructor(course);
-          
-          // Si es instructor, no necesita verificar progreso
-          if (isInstructor) {
-            return {
-              ...course,
-              enrolled: false, // Instructores no necesitan inscripción
-              progress: 0,
-              completedContents: 0,
-              totalContents: course.contents?.length || 0
-            };
-          }
-          
-          // Solo estudiantes verifican progreso
-          try {
-            const progressResponse = await api.get(`/courses/${course._id}/progress/me`);
-            const progressData = progressResponse.data;
-            return {
-              ...course,
-              enrolled: progressData.enrolled || false,
-              progress: progressData.progress || 0,
-              completedContents: progressData.completedContents || 0,
-              totalContents: progressData.totalContents || 0
-            };
-          } catch (error) {
-            // Error 404 significa que no está inscrito - eso es normal
-            return {
-              ...course,
-              enrolled: false,
-              progress: 0,
-              completedContents: 0,
-              totalContents: 0
-            };
-          }
-        })
-      );
-
-      setCourses(coursesWithProgress);
-      setHasFetched(true);
-    } catch (error) {
-      console.error('Error cargando cursos:', error);
-      setHasFetched(true);
+  useEffect(() => {
+    if (!hasFetched) {
+      fetchCourses();
     }
-  };
+  }, [hasFetched, fetchCourses]);
 
-  if (!hasFetched) {
-    loadCoursesAndProgress();
-  }
-}, [user, hasFetched]);
+  useEffect(() => {
+    if (!user || !hasFetched || !courses.length) return;
 
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await Promise.all(
+          courses.map(async (c) => {
+            try {
+              const { data } = await api.get(`/courses/${c._id}/progress/me`);
+              return [c._id, data];
+            } catch {
+              return [c._id, { total: 0, completed: 0, percent: 0 }];
+            }
+          })
+        );
+        if (!cancelled) {
+          setProgressByCourse(Object.fromEntries(results));
+        }
+      } catch (e) {
+        console.error("Error cargando progreso por curso:", e);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [user, hasFetched, courses]);
 
   const handleViewDetails = (courseId) => {
   navigate(`/courses/${courseId}`); // ← Cambia esto
 };
 
-// En tu Courses.jsx, actualiza la función handleEnroll:
-// En tu Courses.jsx, reemplaza completamente handleEnroll:
-const handleEnroll = async (courseId) => {
-  setLoadingStates(prev => ({ ...prev, [courseId]: true }));
-
-  try {
-    console.log('=== DEBUG INSCRIPCIÓN ===');
-    console.log('Curso ID:', courseId);
-    console.log('Usuario:', user);
-    console.log('Token:', localStorage.getItem('token'));
-    
-    const token = localStorage.getItem('token');
-    const response = await api.post(`/courses/${courseId}/enroll`, {}, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    console.log('Respuesta del servidor:', response.data);
-    console.log('=== FIN DEBUG ===');
-
-    // Actualizar el estado del curso
-    setCourses(prevCourses =>
-      prevCourses.map(course =>
-        course._id === courseId
-          ? {
-            ...course,
-            enrolled: true,
-            progress: 0,
-            completedContents: 0,
-            totalContents: course.totalContents || 0
-          }
-          : course
-      )
-    );
-
-    alert('¡Inscripción exitosa! Ahora puedes acceder al curso.');
-
-  } catch (error) {
-    console.log('=== ERROR INSCRIPCIÓN ===');
-    console.error('Error completo:', error);
-    console.error('Datos de respuesta:', error.response?.data);
-    console.error('Status:', error.response?.status);
-    console.error('Headers:', error.response?.headers);
-    console.log('=== FIN ERROR ===');
-    
-    if (error.response?.status === 401) {
-      alert('Debes iniciar sesión para inscribirte en cursos');
-      navigate('/login');
-    } else if (error.response?.status === 400) {
-      alert('Ya estás inscrito en este curso');
-      // Actualizar estado a inscrito
-      setCourses(prevCourses =>
-        prevCourses.map(course =>
-          course._id === courseId
-            ? { ...course, enrolled: true }
-            : course
-        )
-      );
-    } else if (error.response?.status === 404) {
-      alert('Curso no encontrado');
-    } else if (error.response?.status === 500) {
-      alert('Error del servidor. Intenta nuevamente.');
-    } else {
-      alert('Error al inscribirse: ' + (error.response?.data?.message || error.message));
+  const handleEnroll = async (courseId) => {
+    if (!user) {
+      navigate("/login", { 
+        state: { 
+          message: "Necesitas una cuenta para inscribirte en este curso",
+          redirectTo: `/courses/${courseId}`
+        } 
+      });
+      return;
     }
-  } finally {
-    setLoadingStates(prev => ({ ...prev, [courseId]: false }));
-  }
-};
 
-  const handleContinue = (courseId) => {
-    navigate(`/courses/${courseId}/learn`);
+    try {
+      await api.post(`/courses/${courseId}/enroll`);
+      alert("Te has inscrito exitosamente al curso");
+      fetchCourses();
+    } catch (err) {
+      console.error("Error al inscribirse:", err);
+      alert("Error al inscribirse en el curso");
+    }
   };
 
-  if (!user) {
-    return null;
-  }
+  const handleQuickRegister = () => {
+    navigate("/register", {
+      state: {
+        message: "Crea tu cuenta para empezar a aprender hoy mismo",
+        quickRegister: true
+      }
+    });
+  };
 
   return (
     <div className="courses-container">
@@ -195,16 +128,42 @@ const handleEnroll = async (courseId) => {
         <h2 className="title">Catálogo de Cursos</h2>
         <p className="subtitle">
           Explora nuestra selección de cursos especializados
-        </p>
-
-        {(user?.role === "teacher" || user?.role === "admin") && (
+        </p>  
+        
+        {/* Solo mostrar botón de crear curso si está logueado y es teacher/admin */}
+        {user && (user?.role === "teacher" || user?.role === "admin") && (
           <button
             className="create-btn"
             onClick={() => navigate("/courses/new")}
             title="Crear un nuevo curso"
           >
-            + Crear curso
+            <span className="btn-icon">+</span>
+            Crear curso
           </button>
+        )}
+
+        {/* Banner para usuarios no logueados */}
+        {!user && (
+          <div className="guest-banner">
+            <div className="guest-banner-content">
+              <h3>¿Listo para empezar a aprender?</h3>
+              <p>Únete a nuestra plataforma y accede a todos los cursos</p>
+              <div className="guest-actions">
+                <button 
+                  onClick={handleQuickRegister}
+                  className="guest-btn primary"
+                >
+                  Crear Cuenta Gratis
+                </button>
+                <button 
+                  onClick={() => navigate("/login")}
+                  className="guest-btn secondary"
+                >
+                  Iniciar Sesión
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -224,6 +183,7 @@ const handleEnroll = async (courseId) => {
 
             return (
               <div key={course._id} className="course-card">
+                {/* Header de la card con imagen y categoría */}
                 <div className="course-image">
                   <img
                     src={
@@ -238,20 +198,29 @@ const handleEnroll = async (courseId) => {
                   <div className="course-category">
                     {course.category || "General"}
                   </div>
+                  <div className="course-level-tag">
+                    <span className={`level-badge ${course.level?.toLowerCase() || 'beginner'}`}>
+                      {course.level || "Principiante"}
+                    </span>
+                  </div>
                 </div>
-
-                <div className="course-info">
+                
+                {/* Contenido de la card */}
+                <div className="course-content">
                   <h3 className="course-title">{course.title}</h3>
 
                   <div className="course-meta">
+                    {/* SOLO MOSTRAR INSTRUCTOR SI ESTÁ LOGUEADO */}
+                    {user && (
+                      <div className="meta-item">
+                        <span className="meta-icon">👤</span>
+                        <span className="meta-text instructor">
+                          {course.owner?.name || course.instructor || "Administrador"}
+                        </span>
+                      </div>
+                    )}
                     <div className="meta-item">
-                      <span className="meta-label">Creado por:</span>
-                      <span className="meta-text instructor">
-                        {course.owner?.name || "Administrador"}
-                      </span>
-                    </div>
-                    <div className="meta-item">
-                      <span className="meta-label">Duración:</span>
+                      <span className="meta-icon">⏱️</span>
                       <span className="meta-text">
                         {course.duration || "Auto-guiado"}
                       </span>
@@ -265,74 +234,73 @@ const handleEnroll = async (courseId) => {
                   </div>
 
                   <p className="course-description">
-                    {course.description || "Sin descripción disponible..."}
+                    {course.description?.slice(0, 120) || "Sin descripción disponible..."}
+                    {course.description && course.description.length > 120 ? "..." : ""}
                   </p>
 
-                  {/* PROGRESO - Solo mostrar si está inscrito */}
-                  {isEnrolled && (
+                  {/* Progreso - solo para usuarios logueados */}
+                  {user && prog.percent > 0 && (
                     <div className="progress-container">
                       <div className="progress-header">
                         <span className="progress-label">Tu progreso</span>
-                        <span className="progress-percent">{progress}%</span>
+                        <span className="progress-percent">{prog.percent}%</span>
                       </div>
                       <div className="progress-bar">
-                        <div
-                          className="progress-fill"
-                          style={{ width: `${progress}%` }}
+                        <div 
+                          className="progress-fill" 
+                          style={{ width: `${prog.percent}%` }}
                         ></div>
                       </div>
                       <div className="progress-stats">
-                        <span>
-                          {course.completedContents || 0} de {course.totalContents || 0} lecciones completadas
-                        </span>
+                        {prog.completed}/{prog.total} lecciones completadas
                       </div>
                     </div>
                   )}
 
-                  <div className="course-footer">
-                    <div className="course-level">
-                      <span className={`level-badge ${(course.level?.toLowerCase() || 'beginner')}`}>
-                        {course.level || "Principiante"}
+                  {/* Mensaje para usuarios no logueados */}
+                  {!user && (
+                    <div className="guest-prompt">
+                      <p>Inicia sesión para acceder a este curso</p>
+                    </div>
+                  )}
+
+                  {/* Acciones */}
+                  <div className="course-actions">
+                    {/* SOLO MOSTRAR "VER DETALLES" SI ESTÁ LOGUEADO */}
+                    {user && (
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={() => handleViewDetails(course._id)}
+                      >
+                        <span className="btn-icon">👁️</span>
+                        Ver detalles
+                      </button>
+                    )}
+
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => handleEnroll(course._id)}
+                    >
+                      <span className="btn-icon">
+                        {user ? "🎯" : "🔒"}
                       </span>
-                    </div>
+                      {user ? "Inscribirse" : "Acceder al Curso"}
+                    </button>
 
-                    <div className="course-actions">
-                      {/* BOTÓN ÚNICO - Gestionar para instructores, Ver detalles para estudiantes */}
-                      {isInstructor ? (
-                        <button
-                          className="manage-btn"
-                          onClick={() => navigate(`/courses/${course._id}/manage`)}
-                        >
-                          Gestionar
-                        </button>
-                      ) : (
-                        <button
-                          className="details-btn"
-                          onClick={() => handleViewDetails(course._id)}
-                        >
-                          Ver detalles
-                        </button>
-                      )}
-
-                      {/* BOTÓN DE INSCRIPCIÓN/CONTINUAR - Solo para estudiantes */}
-                      {!isInstructor && (isEnrolled ? (
-                        <button
-                          className="continue-btn"
-                          onClick={() => handleContinue(course._id)}
-                          disabled={isLoading}
-                        >
-                          {progress === 100 ? '🎉 Certificado' : '▶️ Continuar'}
-                        </button>
-                      ) : (
-                        <button
-                          className="enroll-btn"
-                          onClick={() => handleEnroll(course._id)}
-                          disabled={isLoading}
-                        >
-                          {isLoading ? 'Inscribiendo...' : 'Inscribirse'}
-                        </button>
-                      ))}
-                    </div>
+                    {/* Botón de eliminar solo para admin logueado */}
+                    {user?.role === "admin" && (
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDeleteCourse(course._id)}
+                        disabled={!!deletingById[course._id]}
+                        title="Borrar curso"
+                      >
+                        <span className="btn-icon">
+                          {deletingById[course._id] ? "⏳" : "🗑️"}
+                        </span>
+                        {deletingById[course._id] ? "Eliminando..." : "Eliminar"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Home.css";
 
 export default function Home() {
   const navigate = useNavigate();
   const [activeModal, setActiveModal] = useState(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const carouselRef = useRef(null);
 
   const openModal = (modalType) => {
     setActiveModal(modalType);
@@ -13,6 +15,67 @@ export default function Home() {
   const closeModal = () => {
     setActiveModal(null);
   };
+
+  // Datos del carrusel
+  const features = [
+    {
+      id: 1,
+      title: "Aprendizaje Sin Límites",
+      description: "Descarga los cursos y aprende sin necesidad de internet. Perfecto para zonas con conexión limitada.",
+      badge: "📱 Offline",
+      image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+    },
+    {
+      id: 2,
+      title: "Contenido Descargable",
+      description: "Videos, PDFs y materiales disponibles para descargar. Estudia cuando y donde quieras.",
+      badge: "💾 Descargas",
+      image: "https://images.unsplash.com/photo-1553877522-43269d4ea984?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+    },
+    {
+      id: 3,
+      title: "Comunidad de Apoyo",
+      description: "Conecta con otros estudiantes y comparte recursos incluso cuando estés offline.",
+      badge: "👥 Comunidad",
+      image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+    },
+    {
+      id: 4,
+      title: "Progreso Sincronizado",
+      description: "Tu avance se guarda localmente y se sincroniza cuando tengas conexión.",
+      badge: "🔄 Sincronización",
+      image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+    },
+    {
+      id: 5,
+      title: "Recursos Gratuitos",
+      description: "Accede a biblioteca de recursos, plantillas y herramientas sin costo adicional.",
+      badge: "🎓 Gratuito",
+      image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+    }
+  ];
+
+  // Navegación del carrusel
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev === features.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev === 0 ? features.length - 1 : prev - 1));
+  };
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
+  };
+
+  // Auto-play del carrusel
+  useEffect(() => {
+    const timer = setInterval(() => {
+      nextSlide();
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [currentSlide]);
 
   // Contenido de los modales
   const modalContent = {
@@ -105,14 +168,13 @@ export default function Home() {
         <div className="hero-content">
           <div className="hero-text">
             <h1 className="hero-title">
-              Transforma tu 
-              <span className="gradient-text"> aprendizaje</span>
+              Educación sin 
+              <span className="gradient-text"> límites</span>
               <br />con <span className="campus-text">Campus Digital</span>
             </h1>
             <p className="hero-subtitle">
-              Descubre una plataforma educativa diseñada para impulsar 
-              tu carrera. Cursos especializados, instructores expertos 
-              y una experiencia de aprendizaje única.
+              Aprende sin depender de internet. Descarga cursos completos, accede a herramientas integradas 
+              y continúa tu educación desde cualquier lugar, incluso sin conexión.
             </p>
             <div className="hero-buttons">
               <button 
@@ -120,78 +182,100 @@ export default function Home() {
                 onClick={() => navigate("/courses")}
               >
                 Explorar Cursos
+                <span className="btn-arrow">→</span>
               </button>
               <button 
                 className="btn-secondary"
-                onClick={() => navigate("/about")}
+                onClick={() => navigate("/register")}
               >
-                Conocer Más
+                Crear Cuenta
               </button>
             </div>
           </div>
           <div className="hero-visual">
             <div className="floating-card card-1">
-              <div className="card-icon">🎓</div>
-              <h4>Aprendizaje Continuo</h4>
+              <div className="card-icon">📚</div>
+              <h4>Cursos Descargables</h4>
+              <p>Estudia sin internet</p>
             </div>
             <div className="floating-card card-2">
-              <div className="card-icon">⚡</div>
-              <h4>Contenido Actualizado</h4>
+              <div className="card-icon">🌍</div>
+              <h4>Accesible</h4>
+              <p>Para todas las regiones</p>
             </div>
             <div className="floating-card card-3">
-              <div className="card-icon">👨‍💻</div>
-              <h4>Proyectos Reales</h4>
+              <div className="card-icon">🎓</div>
+              <h4>Gratuito</h4>
+              <p>Sin costo adicional</p>
             </div>
             <div className="main-visual">
-              <div className="visual-gradient"></div>
+              <div className="visual-element"></div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section - Carrusel funcional */}
       <section className="features-section">
         <div className="container">
           <div className="section-header">
-            <h2>¿Por qué elegir <span className="campus-text">Campus Digital</span>?</h2>
-            <p>Descubre las ventajas que nos hacen diferentes</p>
+            <h2>Educación <span className="campus-text">Accesible</span> para Todos</h2>
+            <p>Diseñado pensando en estudiantes con acceso limitado a internet</p>
           </div>
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">
-                <div className="icon-wrapper">
-                  🎯
-                </div>
+          
+          <div className="features-carousel">
+            <div className="carousel-container">
+              <div 
+                className="carousel-track" 
+                ref={carouselRef}
+                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+              >
+                {features.map((feature, index) => (
+                  <div key={feature.id} className="feature-slide">
+                    <div className="slide-image">
+                      <img 
+                        src={feature.image} 
+                        alt={feature.title}
+                        loading="lazy"
+                      />
+                      <div className="image-overlay"></div>
+                    </div>
+                    <div className="slide-content">
+                      <h3>{feature.title}</h3>
+                      <p>{feature.description}</p>
+                      <div className="feature-badge">{feature.badge}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <h3>Enfoque Práctico</h3>
-              <p>Aprende haciendo con proyectos reales que fortalecen tus habilidades y preparan para el mercado laboral.</p>
             </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <div className="icon-wrapper">
-                  📚
-                </div>
+            
+            {/* Controles del carrusel */}
+            <div className="carousel-controls">
+              <button 
+                className="carousel-prev" 
+                onClick={prevSlide}
+                aria-label="Slide anterior"
+              >
+                ‹
+              </button>
+              <div className="carousel-dots">
+                {features.map((_, index) => (
+                  <button
+                    key={index}
+                    className={`dot ${index === currentSlide ? 'active' : ''}`}
+                    onClick={() => goToSlide(index)}
+                    aria-label={`Ir al slide ${index + 1}`}
+                  />
+                ))}
               </div>
-              <h3>Contenido Exclusivo</h3>
-              <p>Accede a material actualizado constantemente, creado por profesionales líderes en la industria.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <div className="icon-wrapper">
-                  👥
-                </div>
-              </div>
-              <h3>Comunidad Activa</h3>
-              <p>Conecta con otros estudiantes, comparte conocimientos y resuelve dudas en tiempo real.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <div className="icon-wrapper">
-                  🚀
-                </div>
-              </div>
-              <h3>Aprendizaje Flexible</h3>
-              <p>Estudia a tu ritmo, desde cualquier dispositivo y en el horario que mejor te convenga.</p>
+              <button 
+                className="carousel-next" 
+                onClick={nextSlide}
+                aria-label="Siguiente slide"
+              >
+                ›
+              </button>
             </div>
           </div>
         </div>
@@ -210,8 +294,8 @@ export default function Home() {
               <div className="stat-label">Cursos</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">200+</div>
-              <div className="stat-label">Instructores</div>
+              <div className="stat-number">85%</div>
+              <div className="stat-label">Contenido Offline</div>
             </div>
             <div className="stat-item">
               <div className="stat-number">98%</div>
@@ -225,14 +309,22 @@ export default function Home() {
       <section className="cta-section">
         <div className="container">
           <div className="cta-content">
-            <h2>¿Listo para comenzar tu journey en <span className="campus-text">Campus Digital</span>?</h2>
-            <p>Únete a miles de estudiantes que ya están transformando sus carreras</p>
-            <button 
-              className="btn-primary large"
-              onClick={() => navigate("/courses")}
-            >
-              Comenzar Ahora
-            </button>
+            <h2>Comienza tu Aprendizaje Sin Límites</h2>
+            <p>Únete a miles de estudiantes que están transformando su educación con Campus Digital</p>
+            <div className="cta-buttons">
+              <button 
+                className="btn-primary large"
+                onClick={() => navigate("/register")}
+              >
+                Crear Cuenta Gratis
+              </button>
+              <button 
+                className="btn-primary large"
+                onClick={() => navigate("/courses")}
+              >
+                Ver Cursos
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -243,7 +335,7 @@ export default function Home() {
           <div className="footer-content">
             <div className="footer-section">
               <h3>Campus Digital</h3>
-              <p>Transformando la educación online con tecnología de punta y contenido de calidad.</p>
+              <p>Transformando la educación online con tecnología innovadora y contenido accesible para todos.</p>
               <div className="social-links">
                 <a href="#" className="social-link">📘</a>
                 <a href="#" className="social-link">🐦</a>
@@ -252,7 +344,7 @@ export default function Home() {
               </div>
             </div>
             <div className="footer-section">
-              <h4>Enlaces Rápidos</h4>
+              <h4>Plataforma</h4>
               <ul>
                 <li><a href="/courses">Cursos</a></li>
                 <li><a href="/about">Nosotros</a></li>
@@ -270,11 +362,12 @@ export default function Home() {
               </ul>
             </div>
             <div className="footer-section">
-              <h4>Contacto</h4>
+              <h4>Soporte</h4>
               <ul>
-                <li>📧 info@campusdigital.com</li>
-                <li>📞 +1 (555) 123-4567</li>
-                <li>📍 Ciudad de México, MX</li>
+                <li><a href="/help">Centro de Ayuda</a></li>
+                <li><a href="/faq">Preguntas Frecuentes</a></li>
+                <li><a href="/community">Comunidad</a></li>
+                <li><a href="/download">Descargar App</a></li>
               </ul>
             </div>
           </div>
