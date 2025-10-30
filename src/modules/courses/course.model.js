@@ -4,7 +4,7 @@ const OwnerSchema = new Schema(
   {
     _id: { type: Types.ObjectId, ref: "User", required: true },
     name: { type: String, required: true, trim: true },
-    role: { type: String, required: true } // Agregar el rol
+    role: { type: String, required: true }
   },
   { _id: false }
 );
@@ -17,6 +17,47 @@ const InstructorSchema = new Schema(
   },
   { _id: false }
 );
+
+const ContentSchema = new Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  type: {
+    type: String,
+    enum: ['video', 'document', 'quiz', 'assignment', 'text'],
+    required: true
+  },
+  description: {
+    type: String,
+    default: ""
+  },
+  fileUrl: {
+    type: String,
+    default: ""
+  },
+  instructions: {
+    type: String,
+    default: ""
+  },
+  duration: {
+    type: Number, 
+    default: 0
+  },
+  order: {
+    type: Number,
+    default: 0
+  },
+  isPublished: {
+    type: Boolean,
+    default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
 const CourseSchema = new Schema(
   {
@@ -34,12 +75,16 @@ const CourseSchema = new Schema(
       type: OwnerSchema,
       required: true,
     },
-    instructors: [InstructorSchema], // Array de instructores
-    contents: [{ // Mantener tu estructura existente
-      name: String,
-      path: String,
-      size: Number
-    }]
+    instructors: [InstructorSchema],
+    contents: [ContentSchema], 
+    isPublished: {
+      type: Boolean,
+      default: false
+    },
+    price: {
+      type: Number,
+      default: 0
+    }
   },
   { timestamps: true }
 );

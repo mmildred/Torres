@@ -444,7 +444,7 @@ export default function Admin() {
               <h3>Gestionar Profesores</h3>
               <p>Genera códigos de invitación y gestiona el acceso de profesores.</p>
               <button onClick={generateTeacherInviteCode} className="btn btn-primary">
-                Generar Invitación a Profesor
+                Invitación Profesor
               </button>
             </div>
 
@@ -453,7 +453,7 @@ export default function Admin() {
               <h3>Gestionar Administradores</h3>
               <p>Invita nuevos administradores para ayudar en la gestión de la plataforma.</p>
               <button onClick={generateAdminInviteCode} className="btn btn-admin">
-                Generar Invitacion a Administrador
+               Invitacion a Administrador
               </button>
             </div>
 

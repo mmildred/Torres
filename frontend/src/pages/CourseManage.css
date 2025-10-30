@@ -1,0 +1,484 @@
+.course-manage-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.manage-header {
+  margin-bottom: 2rem;
+}
+
+.back-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.back-btn:hover {
+  background: #5a6268;
+}
+
+.manage-header h1 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.manage-header p {
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+.course-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.stat-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.content-actions {
+  margin-bottom: 2rem;
+}
+
+.add-content-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.add-content-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* Modal del formulario */
+.content-form-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin-bottom: 1.5rem;
+  color: #2d3748;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.save-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cancel-btn {
+  background: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Lista de contenidos */
+.contents-list h2 {
+  margin-bottom: 1rem;
+  color: #2d3748;
+}
+
+.contents-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.content-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  border-left: 4px solid #667eea;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.content-type-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.content-type-badge.video { background: #fed7d7; color: #c53030; }
+.content-type-badge.document { background: #e9d8fd; color: #6b46c1; }
+.content-type-badge.quiz { background: #c6f6d5; color: #276749; }
+.content-type-badge.assignment { background: #bee3f8; color: #2c5aa0; }
+.content-type-badge.text { background: #faf089; color: #744210; }
+
+.content-order {
+  color: #718096;
+  font-weight: 600;
+}
+
+.content-title {
+  margin: 0 0 0.5rem 0;
+  color: #2d3748;
+  font-size: 1.1rem;
+}
+
+.content-description {
+  color: #718096;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.content-instructions {
+  background: #f7fafc;
+  padding: 1rem;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #4a5568;
+}
+
+.content-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: #718096;
+}
+
+.status.published { color: #38a169; font-weight: 600; }
+.status.draft { color: #e53e3e; font-weight: 600; }
+
+.content-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.edit-btn, .publish-btn, .delete-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.edit-btn {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.publish-btn.publish {
+  background: #48bb78;
+  color: white;
+}
+
+.publish-btn.unpublish {
+  background: #ed8936;
+  color: white;
+}
+
+.delete-btn {
+  background: #fc8181;
+  color: white;
+}
+
+/* Estados vacíos */
+.empty-contents {
+  text-align: center;
+  padding: 3rem;
+  color: #718096;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.loading, .error, .access-denied {
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.1rem;
+}
+
+.error { color: #e53e3e; }
+.access-denied { color: #ed8936; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .course-manage-container {
+    padding: 1rem;
+  }
+  
+  .course-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .content-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .content-actions {
+    flex-direction: column;
+  }
+}
+
+
+/* CourseManage.css - AGREGAR ESTOS ESTILOS */
+
+.course-publish-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border-left: 4px solid #007bff;
+}
+
+.course-publish-section h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.publish-status {
+  margin-bottom: 15px;
+}
+
+.publish-status .published {
+  color: #28a745;
+}
+
+.publish-status .draft {
+  color: #dc3545;
+}
+
+.status-description {
+  color: #666;
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+.publish-actions {
+  margin-top: 15px;
+}
+
+.publish-course-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.publish-course-btn:hover {
+  background: #218838;
+}
+
+.unpublish-course-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.unpublish-course-btn:hover {
+  background: #c82333;
+}
+
+/* Estilos para los nuevos botones y formularios */
+.content-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.upload-file-btn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.upload-file-btn:hover {
+  background: #138496;
+}
+
+.add-content-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.add-content-btn:hover {
+  background: #218838;
+}
+
+.file-info {
+  background: #f8f9fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+  border-left: 3px solid #17a2b8;
+  font-size: 14px;
+}
+
+/* Mejoras para los cards de contenido */
+.content-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  background: white;
+  transition: box-shadow 0.3s;
+}
+
+.content-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.content-type-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.content-type-badge.document {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.content-type-badge.video {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.content-type-badge.image {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.content-type-badge.text {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.content-type-badge.quiz {
+  background: #fff8e1;
+  color: #ffa000;
+}
+
+.content-type-badge.assignment {
+  background: #fce4ec;
+  color: #c2185b;
+}
