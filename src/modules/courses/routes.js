@@ -1,4 +1,3 @@
-// modules/courses/routes.js - VERSIÓN CORREGIDA
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -7,6 +6,8 @@ import Course from './course.model.js';
 import Enrollment from './enrollment.model.js';
 import { auth } from '../../middleware/auth.js';
 import User from '../auth/user.model.js';
+import express from 'express';
+import File from './content.model.js';
 
 const r = Router();
 
@@ -23,31 +24,23 @@ r.get('/', async (req, res) => {
   try {
     let filter = {};
     
-    // 🔴 PROBLEMA: El filtro actual no funciona correctamente
-    // ✅ SOLUCIÓN: Construir el filtro paso a paso
-    
     if (req.user) {
-      // Si es teacher o admin, puede ver:
-      // 1. Todos los cursos publicados
-      // 2. Sus propios cursos (publicados o no)
       if (req.user.role === 'teacher' || req.user.role === 'admin') {
         filter = {
           $or: [
-            { isPublished: true }, // Cursos publicados (todos pueden ver)
+            { isPublished: true }, 
             { 
               $or: [
-                { 'owner._id': req.user.id }, // Sus cursos como owner
-                { 'instructors._id': req.user.id } // Sus cursos como instructor
+                { 'owner._id': req.user.id }, 
+                { 'instructors._id': req.user.id } 
               ]
             }
           ]
         };
       } else {
-        // Para estudiantes, solo cursos publicados
         filter = { isPublished: true };
       }
     } else {
-      // Usuario no autenticado, solo cursos publicados
       filter = { isPublished: true };
     }
 
@@ -57,7 +50,6 @@ r.get('/', async (req, res) => {
     const list = await Course.find(filter).sort({ createdAt: -1 });
     console.log("📊 Cursos encontrados:", list.length);
     
-    // Log para depuración
     list.forEach(course => {
       console.log(`📖 Curso: "${course.title}" - Publicado: ${course.isPublished} - Owner: ${course.owner?._id}`);
     });
@@ -69,7 +61,7 @@ r.get('/', async (req, res) => {
   }
 });
 
-// ✅ RUTA PARA OBTENER CURSO INDIVIDUAL
+// RUTA PARA OBTENER CURSO INDIVIDUAL
 r.get('/:id', auth(), async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
@@ -78,14 +70,12 @@ r.get('/:id', auth(), async (req, res) => {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar si el usuario puede ver el curso
     const isOwner = course.owner._id.toString() === req.user.id;
     const isInstructor = course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
     );
     const isAdmin = req.user.role === 'admin';
     
-    // Si el curso no está publicado y el usuario no es instructor/admin/propietario, denegar acceso
     if (!course.isPublished && !isOwner && !isInstructor && !isAdmin) {
       return res.status(403).json({ message: 'No tienes acceso a este curso' });
     }
@@ -143,7 +133,7 @@ r.post('/', auth('teacher'), async (req, res) => {
         role: creator.role
       }],
       contents: [],
-      isPublished: true, // ✅ CAMBIAR A TRUE PARA PUBLICAR AUTOMÁTICAMENTE
+      isPublished: true, 
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -173,7 +163,7 @@ r.post('/', auth('teacher'), async (req, res) => {
   }
 });
 
-// ✅ RUTA PARA SUBIR ARCHIVOS
+// RUTA PARA SUBIR ARCHIVOS
 r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -189,7 +179,6 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar permisos
     const isOwner = course.owner._id.toString() === req.user.id;
     const isInstructor = course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
@@ -199,7 +188,6 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
       return res.status(403).json({ message: 'No tienes permisos para subir archivos' });
     }
 
-    // Determinar el tipo de contenido basado en la extensión del archivo
     const getFileType = (filename) => {
       const ext = path.extname(filename).toLowerCase();
       if (['.pdf', '.doc', '.docx', '.txt', '.ppt', '.pptx'].includes(ext)) {
@@ -247,7 +235,7 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
 
 
 
-// ✅ RUTA PARA SERVIR ARCHIVOS SUBIDOS
+// RUTA ARCHIVOS SUBIDOS
 r.get('/uploads/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
@@ -264,7 +252,7 @@ r.get('/uploads/:filename', async (req, res) => {
   }
 });
 
-// ✅ RUTA DE INSCRIPCIÓN CORREGIDA
+// RUTA DE INSCRIPCIÓN 
 r.post('/:courseId/enroll', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -275,7 +263,6 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // ✅ VERIFICAR QUE EL CURSO ESTÉ PUBLICADO PARA INSCRIPCIÓN
     if (!course.isPublished) {
       return res.status(403).json({ message: 'No puedes inscribirte en un curso no publicado' });
     }
@@ -317,7 +304,7 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
   }
 });
 
-// ✅ RUTA PARA VERIFICAR INSCRIPCIÓN (NUEVA)
+// RUTA PARA VERIFICAR INSCRIPCIÓN 
 r.get('/:courseId/enrollment/check', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -338,7 +325,7 @@ r.get('/:courseId/enrollment/check', auth(), async (req, res) => {
   }
 });
 
-// ✅ PUBLICAR CURSO
+// PUBLICAR CURSO
 r.patch('/:courseId/publish', auth('teacher'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -348,7 +335,6 @@ r.patch('/:courseId/publish', auth('teacher'), async (req, res) => {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar permisos
     const isOwner = course.owner._id.toString() === req.user.id;
     const isInstructor = course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
@@ -369,7 +355,6 @@ r.patch('/:courseId/publish', auth('teacher'), async (req, res) => {
   }
 });
 
-// ✅ DESPUBLICAR CURSO
 r.patch('/:courseId/unpublish', auth('teacher'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -379,7 +364,6 @@ r.patch('/:courseId/unpublish', auth('teacher'), async (req, res) => {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar permisos
     const isOwner = course.owner._id.toString() === req.user.id;
     const isInstructor = course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
@@ -400,8 +384,6 @@ r.patch('/:courseId/unpublish', auth('teacher'), async (req, res) => {
   }
 });
 
-// ✅ RUTA DE PROGRESO CORREGIDA
-
 r.get('/:courseId/progress/me', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -417,7 +399,6 @@ r.get('/:courseId/progress/me', auth(), async (req, res) => {
       userId: userId
     });
 
-    // ✅ MEJORAR: DEVOLVER 200 CON enrolled: false EN LUGAR DE 404
     if (!enrollment) {
       return res.status(200).json({
         enrolled: false,
@@ -447,7 +428,7 @@ r.get('/:courseId/progress/me', auth(), async (req, res) => {
   }
 });
 
-// ✅ RUTA PARA MANIFEST
+// RUTA PARA MANIFEST
 r.get('/:id/manifest', async (req, res) => {
   try {
     const c = await Course.findById(req.params.id);
@@ -468,7 +449,7 @@ r.get('/:id/manifest', async (req, res) => {
   }
 });
 
-// ✅ CREAR CONTENIDO SIN ARCHIVO
+// CREAR CONTENIDO SIN ARCHIVO
 r.post('/:courseId/contents', auth('teacher'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -511,7 +492,7 @@ r.post('/:courseId/contents', auth('teacher'), async (req, res) => {
   }
 });
 
-// ✅ ACTUALIZAR CONTENIDO
+// ACTUALIZAR CONTENIDO
 r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -522,7 +503,6 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar permisos
     const isOwner = course.owner._id.toString() === req.user.id;
     const isInstructor = course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
@@ -532,7 +512,6 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
       return res.status(403).json({ message: 'No tienes permisos para editar contenido' });
     }
 
-    // Encontrar y actualizar el contenido
     const contentIndex = course.contents.findIndex(content => 
       content._id.toString() === contentId
     );
@@ -541,7 +520,7 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
       return res.status(404).json({ message: 'Contenido no encontrado' });
     }
 
-    // Mapear type si viene en la actualización
+    
     if (updateData.type) {
       const mapContentType = (type) => {
         const typeMap = {
@@ -556,7 +535,6 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
       updateData.type = mapContentType(updateData.type);
     }
 
-    // Actualizar el contenido
     course.contents[contentIndex] = {
       ...course.contents[contentIndex].toObject(),
       ...updateData
@@ -582,7 +560,6 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
   }
 });
 
-// ✅ ELIMINAR CONTENIDO
 r.delete('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -592,7 +569,7 @@ r.delete('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => 
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar permisos
+
     const isOwner = course.owner._id.toString() === req.user.id;
     const isInstructor = course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
@@ -602,7 +579,6 @@ r.delete('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => 
       return res.status(403).json({ message: 'No tienes permisos para eliminar contenido' });
     }
 
-    // Filtrar el contenido a eliminar
     course.contents = course.contents.filter(content => 
       content._id.toString() !== contentId
     );
@@ -618,7 +594,6 @@ r.delete('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => 
   }
 });
 
-// ✅ ALTERNAR PUBLICACIÓN DE CONTENIDO
 r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -628,7 +603,6 @@ r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async 
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar permisos
     const isOwner = course.owner._id.toString() === req.user.id;
     const isInstructor = course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
@@ -638,7 +612,6 @@ r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async 
       return res.status(403).json({ message: 'No tienes permisos para publicar contenido' });
     }
 
-    // Encontrar el contenido
     const contentIndex = course.contents.findIndex(content => 
       content._id.toString() === contentId
     );
@@ -647,7 +620,6 @@ r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async 
       return res.status(404).json({ message: 'Contenido no encontrado' });
     }
 
-    // Alternar el estado de publicación
     course.contents[contentIndex].isPublished = !course.contents[contentIndex].isPublished;
 
     await course.save();
@@ -675,13 +647,11 @@ r.post('/:courseId/contents/:contentId/complete', auth(), async (req, res) => {
       return res.status(404).json({ message: 'No estás inscrito en este curso' });
     }
 
-    // Verificar si ya está completado
     if (!enrollment.completedContentIds.includes(contentId)) {
       enrollment.completedContentIds.push(contentId);
       await enrollment.save();
     }
 
-    // Calcular progreso actualizado
     const course = await Course.findById(courseId);
     const totalContents = course?.contents?.length || 0;
     const completedContents = enrollment.completedContentIds.length;
@@ -701,7 +671,6 @@ r.post('/:courseId/contents/:contentId/complete', auth(), async (req, res) => {
   }
 });
 
-// ✅ DESMARCAR CONTENIDO COMO COMPLETADO
 r.post('/:courseId/contents/:contentId/uncomplete', auth(), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -716,13 +685,11 @@ r.post('/:courseId/contents/:contentId/uncomplete', auth(), async (req, res) => 
       return res.status(404).json({ message: 'No estás inscrito en este curso' });
     }
 
-    // Remover de completados
     enrollment.completedContentIds = enrollment.completedContentIds.filter(
       id => id.toString() !== contentId
     );
     await enrollment.save();
 
-    // Calcular progreso actualizado
     const course = await Course.findById(courseId);
     const totalContents = course?.contents?.length || 0;
     const completedContents = enrollment.completedContentIds.length;
@@ -742,7 +709,6 @@ r.post('/:courseId/contents/:contentId/uncomplete', auth(), async (req, res) => 
   }
 });
 
-// ✅ SUBIR ENTREGA DE TAREA
 r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -763,7 +729,6 @@ r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), a
       return res.status(404).json({ message: 'No estás inscrito en este curso' });
     }
 
-    // Verificar si ya existe una entrega para este contenido
     const existingSubmissionIndex = enrollment.submissions.findIndex(
       submission => submission.contentId.toString() === contentId
     );
@@ -779,10 +744,8 @@ r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), a
     };
 
     if (existingSubmissionIndex !== -1) {
-      // Actualizar entrega existente
       enrollment.submissions[existingSubmissionIndex] = submissionData;
     } else {
-      // Crear nueva entrega
       enrollment.submissions.push(submissionData);
     }
 
@@ -799,7 +762,6 @@ r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), a
   }
 });
 
-// ✅ OBTENER ENTREGAS DE UN ESTUDIANTE
 r.get('/:courseId/submissions/me', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -827,19 +789,16 @@ r.get('/:courseId/submissions/me', auth(), async (req, res) => {
 r.get('/my-courses', auth(), async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    // Obtener todas las inscripciones del usuario
+
     const enrollments = await Enrollment.find({ userId: userId });
     
-    // Obtener los cursos de las inscripciones
     const courseIds = enrollments.map(enrollment => enrollment.courseId);
     
     const courses = await Course.find({ 
       _id: { $in: courseIds },
-      isPublished: true // Solo cursos publicados
+      isPublished: true 
     });
     
-    // Enriquecer con información de progreso
     const coursesWithProgress = await Promise.all(
       courses.map(async (course) => {
         const enrollment = enrollments.find(e => e.courseId.toString() === course._id.toString());
@@ -865,6 +824,137 @@ r.get('/my-courses', auth(), async (req, res) => {
   } catch (error) {
     console.error('Error obteniendo mis cursos:', error);
     res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+r.get('/files/available', auth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Buscar cursos donde el usuario está inscrito
+    const userEnrollments = await Enrollment.find({ userId: userId });
+    const enrolledCourseIds = userEnrollments.map(e => e.courseId);
+    
+    // Buscar cursos públicos o donde el usuario está inscrito
+    const courses = await Course.find({
+      $or: [
+        { isPublished: true },
+        { _id: { $in: enrolledCourseIds } }
+      ]
+    });
+    
+    // Extraer todos los archivos de contenido
+    const allFiles = [];
+    courses.forEach(course => {
+      course.contents.forEach(content => {
+        if (content.filePath && content.isPublished) {
+          allFiles.push({
+            _id: content._id,
+            title: content.title,
+            fileType: content.type || 'document',
+            fileSize: content.fileSize || 0,
+            filePath: content.filePath,
+            fileName: content.fileName,
+            subject: course.category,
+            educationalLevel: course.level,
+            courseId: course._id,
+            courseTitle: course.title,
+            createdAt: content.createdAt
+          });
+        }
+      });
+    });
+
+    res.json(allFiles);
+  } catch (error) {
+    console.error('Error al obtener archivos:', error);
+    res.status(500).json({ message: 'Error al obtener archivos', error: error.message });
+  }
+});
+
+// Descargar archivo individual
+r.get('/files/:fileId/download', auth(), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user.id;
+
+    // Buscar en todos los cursos
+    const courses = await Course.find({
+      'contents._id': fileId,
+      $or: [
+        { isPublished: true },
+        { 'enrollments.userId': userId }
+      ]
+    });
+
+    let targetContent = null;
+    let targetCourse = null;
+
+    // Encontrar el contenido específico
+    for (const course of courses) {
+      const content = course.contents.find(c => c._id.toString() === fileId);
+      if (content && content.filePath) {
+        targetContent = content;
+        targetCourse = course;
+        break;
+      }
+    }
+
+    if (!targetContent) {
+      return res.status(404).json({ message: 'Archivo no encontrado o sin permisos' });
+    }
+
+    const filePath = path.join(uploadDir, targetContent.filePath);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'Archivo físico no encontrado' });
+    }
+
+    // Registrar descarga (puedes agregar esta lógica si quieres tracking)
+    console.log(`📥 Usuario ${userId} descargó: ${targetContent.title}`);
+
+    // Enviar archivo
+    res.download(filePath, targetContent.fileName || targetContent.title);
+
+  } catch (error) {
+    console.error('Error al descargar archivo:', error);
+    res.status(500).json({ message: 'Error al descargar archivo', error: error.message });
+  }
+});
+
+// Obtener archivos ya descargados por el usuario
+r.get('/files/my-downloads', auth(), async (req, res) => {
+  try {
+    // Esta sería una implementación básica - puedes expandirla con tracking en BD
+    const userId = req.user.id;
+    
+    const userEnrollments = await Enrollment.find({ userId: userId });
+    const enrolledCourseIds = userEnrollments.map(e => e.courseId);
+    
+    const courses = await Course.find({
+      _id: { $in: enrolledCourseIds }
+    });
+    
+    const downloadedFiles = [];
+    courses.forEach(course => {
+      course.contents.forEach(content => {
+        if (content.filePath) {
+          downloadedFiles.push({
+            fileId: content._id,
+            title: content.title,
+            fileType: content.type || 'document',
+            fileSize: content.fileSize || 0,
+            courseTitle: course.title,
+            downloadedAt: new Date() // Podrías guardar esto en BD
+          });
+        }
+      });
+    });
+
+    res.json(downloadedFiles);
+  } catch (error) {
+    console.error('Error al obtener descargas:', error);
+    res.status(500).json({ message: 'Error al obtener descargas', error: error.message });
   }
 });
 

@@ -1,101 +1,184 @@
-// CourseContents.jsx - ACTUALIZADO
-import React from "react";
-import api from "../api";
+// CourseContents.jsx - VERSIÓN CON DESCARGAS OFFLINE
+import React, { useState, useEffect } from "react";
+import downloadManager from "../offline/downloadManager";
 import "./CourseContents.css";
 
-export default function CourseContents({ course, userRole, isEnrolled, isInstructor }) {
-  
-  const handleDownload = async (content) => {
+export default function CourseContents({ 
+  course, 
+  userRole, 
+  isEnrolled, 
+  isInstructor, 
+  onContentUpdated 
+}) {
+  const [downloadedFiles, setDownloadedFiles] = useState({});
+  const [downloading, setDownloading] = useState({});
+
+  // Cargar estado de archivos descargados
+  useEffect(() => {
+    loadDownloadedFiles();
+    
+    // Escuchar eventos de descarga completada
+    const handleDownloadComplete = (event) => {
+      const { file } = event.detail;
+      setDownloadedFiles(prev => ({
+        ...prev,
+        [file.fileId]: true
+      }));
+      setDownloading(prev => ({
+        ...prev,
+        [file.fileId]: false
+      }));
+    };
+
+    window.addEventListener('downloadComplete', handleDownloadComplete);
+    
+    return () => {
+      window.removeEventListener('downloadComplete', handleDownloadComplete);
+    };
+  }, []);
+
+  const loadDownloadedFiles = async () => {
     try {
-      // ✅ VERIFICAR DIFERENTES CAMPOS DE ARCHIVO
-      const filePath = content.filePath || content.fileUrl?.replace('/uploads/', '');
+      const downloaded = await downloadManager.getDownloadedFiles();
+      const downloadedMap = {};
+      downloaded.forEach(file => {
+        downloadedMap[file.fileId] = true;
+      });
+      setDownloadedFiles(downloadedMap);
+    } catch (error) {
+      console.error('Error cargando archivos descargados:', error);
+    }
+  };
+
+  const handleDownload = async (content) => {
+    if (!content.filePath) return;
+    
+    setDownloading(prev => ({ ...prev, [content._id]: true }));
+    
+    try {
+      const fileData = {
+        _id: content._id,
+        fileId: content._id,
+        title: content.title,
+        fileType: content.type || 'document',
+        fileSize: content.fileSize || 0,
+        filePath: content.filePath,
+        fileName: content.fileName || content.title,
+        courseId: course._id,
+        courseTitle: course.title
+      };
+
+      const success = await downloadManager.downloadFile(fileData);
       
-      if (!filePath) {
-        alert('Este contenido no tiene archivo asociado');
-        return;
+      if (success) {
+        setDownloadedFiles(prev => ({
+          ...prev,
+          [content._id]: true
+        }));
       }
-
-      // Para profesores/admin: acceso directo
-      if (userRole === 'teacher' || userRole === 'admin' || isInstructor) {
-        window.open(`http://localhost:4000/courses/uploads/${filePath}`, '_blank');
-        return;
-      }
-
-      // Para estudiantes: verificar inscripción y publicación
-      if (!isEnrolled) {
-        alert('Debes inscribirte en el curso para acceder a los archivos');
-        return;
-      }
-
-      if (!content.isPublished) {
-        alert('Este contenido no está disponible aún');
-        return;
-      }
-
-      window.open(`http://localhost:4000/courses/uploads/${filePath}`, '_blank');
-      
     } catch (error) {
       console.error('Error descargando archivo:', error);
-      alert('Error al descargar el archivo');
+      alert(`Error descargando "${content.title}": ${error.message}`);
+    } finally {
+      setDownloading(prev => ({
+        ...prev,
+        [content._id]: false
+      }));
     }
   };
 
-  const canViewContent = (content) => {
-    // Profesores y admin pueden ver todo
-    if (userRole === 'teacher' || userRole === 'admin' || isInstructor) return true;
+const handleOpenOffline = async (content) => {
+  try {
+    console.log('🔄 Intentando abrir archivo offline:', content._id);
     
-    // Estudiantes solo pueden ver contenido publicado si están inscritos
-    return isEnrolled && content.isPublished;
-  };
-
-  const getVisibleContents = () => {
-    if (!course || !course.contents) return [];
+    // Verificación del estado
+    const status = await downloadManager.verifyFileDownload(content._id);
+    console.log('📊 Estado del archivo:', status);
     
-    // Instructores ven TODOS los contenidos
-    if (isInstructor) {
-      return course.contents;
+    if (!status.exists) {
+      alert('El archivo no está disponible offline. Intenta descargarlo nuevamente.');
+      return;
     }
     
-    // Estudiantes solo ven contenidos PUBLICADOS
-    return course.contents.filter(content => 
-      content.isPublished === true
-    );
-  };
-
-  // ✅ FUNCIÓN PARA VERIFICAR SI TIENE ARCHIVO
-  const hasFile = (content) => {
-    return !!(content.filePath || content.fileUrl);
-  };
-
-  // ✅ OBTENER NOMBRE DEL ARCHIVO
-  const getFileName = (content) => {
-    return content.fileName || content.title || 'archivo';
-  };
-
-  // ✅ OBTENER TAMAÑO DEL ARCHIVO
-  const getFileSize = (content) => {
-    if (content.fileSize) {
-      return Math.round(content.fileSize / 1024 / 1024 * 100) / 100;
+    // Verificar discrepancia de tamaño (solo para log, no para bloquear)
+    if (status.metadata && status.metadata.fileSize > 1000) {
+      const cache = await caches.open('edu-files-v1');
+      const response = await cache.match(status.cacheUrl);
+      if (response) {
+        const blob = await response.blob();
+        if (blob.size < 1000 && status.metadata.fileSize > 1000) {
+          console.warn('⚠️ DISCREPANCIA: Metadata dice', status.metadata.fileSize, 'pero cache tiene', blob.size);
+          // No bloquear, solo log
+        }
+      }
     }
-    return null;
+    
+    // USAR LA NUEVA FUNCIÓN CON REPARACIÓN
+    await downloadManager.openFileWithRepair(content._id);
+    
+  } catch (error) {
+    console.error('❌ Error abriendo archivo offline:', error);
+    
+    let errorMessage = `Error abriendo "${content.title}": ${error.message}`;
+    
+    if (error.message.includes('bloqueó')) {
+      errorMessage += '\n\nSolución: Permite ventanas emergentes para este sitio.';
+    } else if (error.message.includes('no encontrado') || error.message.includes('corrupto')) {
+      errorMessage += '\n\nSolución: El archivo puede estar corrupto. Se intentará re-descargar automáticamente.';
+      
+      // Re-descargar automáticamente
+      setTimeout(() => {
+        console.log('🔄 Re-descargando archivo automáticamente...');
+        handleDownload(content);
+      }, 1000);
+    }
+    
+    alert(errorMessage);
+  }
+};
+
+  const getFileIcon = (fileType) => {
+    const icons = {
+      pdf: '📕',
+      video: '🎬',
+      image: '🖼️',
+      document: '📄',
+      presentation: '📊',
+      texto: '📝',
+      tarea: '📋',
+      quiz: '❓'
+    };
+    return icons[fileType] || '📁';
   };
 
-  const visibleContents = getVisibleContents();
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
-  if (!course || !course.contents || course.contents.length === 0) {
+  // Filtrar contenidos visibles
+  const visibleContents = isInstructor 
+    ? course.contents || []
+    : (course.contents || []).filter(content => content.isPublished === true);
+
+  if (!visibleContents || visibleContents.length === 0) {
     return (
       <div className="course-contents">
-        <h2>Contenidos del Curso</h2>
+        <div className="contents-header">
+          <h2>Contenido del Curso</h2>
+        </div>
         <div className="empty-contents">
-          <p>Este curso aún no tiene contenidos disponibles.</p>
-          {isInstructor && (
-            <button
-              className="add-content-btn"
-              onClick={() => window.location.href = `/courses/${course._id}/manage`}
-            >
-              Agregar Contenido
-            </button>
-          )}
+          <div className="empty-icon">📚</div>
+          <h3>No hay contenidos disponibles</h3>
+          <p>
+            {isInstructor 
+              ? "Comienza agregando contenido a tu curso."
+              : "Este curso no tiene contenidos publicados aún."
+            }
+          </p>
         </div>
       </div>
     );
@@ -103,84 +186,108 @@ export default function CourseContents({ course, userRole, isEnrolled, isInstruc
 
   return (
     <div className="course-contents">
-      <h2>Contenidos del Curso ({visibleContents.length})</h2>
-      
-      <div className="contents-list">
-        {visibleContents.map((content, index) => (
-          <div 
-            key={content._id || index} 
-            className={`content-item ${canViewContent(content) ? 'available' : 'locked'}`}
-          >
-            <div className="content-info">
-              <div className="content-header">
-                <h4>
-                  {index + 1}. {content.title}
-                  {!content.isPublished && <span className="badge draft">Borrador</span>}
-                  {content.isPublished && <span className="badge published">Publicado</span>}
-                </h4>
-              </div>
-              
-              {content.description && (
-                <p className="content-description">{content.description}</p>
-              )}
-              
-              <div className="content-meta">
-                <span className="content-type">Tipo: {content.type}</span>
-                {content.duration > 0 && (
-                  <span className="content-duration">Duración: {content.duration} min</span>
-                )}
-                {/* ✅ MOSTRAR INFORMACIÓN DEL ARCHIVO SI EXISTE */}
-                {hasFile(content) && (
-                  <>
-                    <span className="content-file">
-                      Archivo: {getFileName(content)}
-                    </span>
-                    {getFileSize(content) && (
-                      <span className="content-size">
-                        Tamaño: {getFileSize(content)} MB
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {content.instructions && (
-                <p className="content-instructions">
-                  <strong>Instrucciones:</strong> {content.instructions}
-                </p>
-              )}
-            </div>
-
-            <div className="content-actions">
-              {hasFile(content) && canViewContent(content) ? (
-                <button 
-                  className="download-btn"
-                  onClick={() => handleDownload(content)}
-                  title={`Descargar ${getFileName(content)}`}
-                >
-                  📥 Descargar
-                </button>
-              ) : hasFile(content) ? (
-                <button className="locked-btn" disabled>
-                  🔒 No disponible
-                </button>
-              ) : (
-                <span className="no-file">Sin archivo</span>
-              )}
-            </div>
-          </div>
-        ))}
+      <div className="contents-header">
+        <h2>Contenido del Curso</h2>
+        <span className="contents-count">
+          {visibleContents.length} lección{visibleContents.length !== 1 ? 'es' : ''}
+        </span>
       </div>
 
-      {/* Información sobre contenidos no visibles */}
-      {isInstructor && course.contents.length > visibleContents.length && (
-        <div className="contents-notice">
-          <p>
-            <strong>Nota:</strong> Tienes {course.contents.length - visibleContents.length} 
-            contenido(s) en borrador que los estudiantes no pueden ver.
-          </p>
-        </div>
-      )}
+      <div className="contents-list">
+        {visibleContents.map((content, index) => {
+          const hasFile = !!content.filePath;
+          const isDownloaded = downloadedFiles[content._id];
+          const isDownloading = downloading[content._id];
+
+          return (
+            <div key={content._id} className="content-item">
+              <div className="content-number">{index + 1}</div>
+              
+              <div className="content-info">
+                <div className="content-header">
+                  <h4>{content.title}</h4>
+                  {!content.isPublished && isInstructor && (
+                    <span className="draft-badge">Borrador</span>
+                  )}
+                </div>
+                
+                {content.description && (
+                  <p className="content-description">{content.description}</p>
+                )}
+                
+                <div className="content-meta">
+                  {content.type && (
+                    <span className="content-type">{content.type}</span>
+                  )}
+                  {content.duration > 0 && (
+                    <span className="content-duration">⏱️ {content.duration} min</span>
+                  )}
+                  {hasFile && content.fileSize > 0 && (
+                    <span className="content-size">{formatFileSize(content.fileSize)}</span>
+                  )}
+                </div>
+
+                {/* Acciones de archivo */}
+                {hasFile && (
+                  <div className="content-actions">
+                    {isDownloaded ? (
+                      <div className="offline-actions">
+                        <button 
+                          className="btn btn-success"
+                          onClick={() => handleOpenOffline(content)}
+                          title="Abrir sin conexión a internet"
+                        >
+                          📖 Abrir Offline
+                        </button>
+                        <span className="offline-badge">✅ Disponible sin internet</span>
+                      </div>
+                    ) : (
+                      <button 
+                        className={`btn btn-primary ${isDownloading ? 'downloading' : ''}`}
+                        onClick={() => handleDownload(content)}
+                        disabled={isDownloading || !isEnrolled}
+                        title={!isEnrolled ? "Inscríbete para descargar" : "Descargar para uso offline"}
+                      >
+                        {isDownloading ? (
+                          <>
+                            <span className="loading-spinner-small"></span>
+                            Descargando...
+                          </>
+                        ) : (
+                          `📥 Descargar ${getFileIcon(content.type)}`
+                        )}
+                      </button>
+                    )}
+                    
+                    {/* Enlace directo como fallback */}
+                    <a 
+                      href={`http://localhost:4000/api/courses/uploads/${content.filePath}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline"
+                      onClick={(e) => {
+                        if (isDownloaded) {
+                          e.preventDefault();
+                          handleOpenOffline(content);
+                        }
+                      }}
+                      title="Abrir en línea"
+                    >
+                      🔗 Abrir Online
+                    </a>
+                  </div>
+                )}
+
+                {!hasFile && (
+                  <div className="no-file-message">
+                    <span>📝 Contenido sin archivo adjunto</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

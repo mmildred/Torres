@@ -1,18 +1,59 @@
-import mongoose from "mongoose";
-const { Schema, Types } = mongoose;
+import mongoose from 'mongoose';
 
-const ContentSchema = new Schema(
-  {
-    courseId: { type: Types.ObjectId, ref: "Course", required: true, index: true },
-    title: { type: String, required: true, trim: true },
-    type: { type: String, enum: ["text", "link", "file"], required: true },
-    text: { type: String, default: "" },       // si type=text
-    url: { type: String, default: "" },        // si type=link
-    filePath: { type: String, default: "" },   // si type=file
-    order: { type: Number, default: 0, index: true },
-    durationMinutes: { type: Number, default: 0 }, // para estimar progreso
+const contentSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true
   },
-  { timestamps: true }
-);
+  fileType: {
+    type: String,
+    enum: ['pdf', 'video', 'image', 'document', 'presentation'],
+    required: true
+  },
+  filePath: {
+    type: String,
+    required: true
+  },
+  fileSize: {
+    type: Number, 
+    required: true
+  },
+  subject: {
+    type: String,
+    required: true
+  },
+  educationalLevel: {
+    type: String,
+    enum: ['primaria', 'secundaria', 'preparatoria', 'universidad'],
+    required: true
+  },
+  accessLevel: {
+    type: String,
+    enum: ['public', 'registered', 'enrolled'],
+    default: 'registered'
+  },
+  enrolledUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  downloadedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    downloadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  downloadCount: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true
+});
 
-export default mongoose.model("Content", ContentSchema);
+export default mongoose.model('File', contentSchema);

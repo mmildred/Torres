@@ -17,11 +17,12 @@ import CourseManage from './pages/CourseManage.jsx';
 import CourseDetail from './pages/CourseDetail.jsx';
 import CourseLearning from './pages/CourseLearning.jsx';
 import MyCourses from './pages/MyCourses.jsx'
+import ResourceLibrary from './pages/ResourseLibrary.jsx';
 
-// ✅ BLOQUEAR IMAGEN PROBLEMÁTICA - DEBE ESTAR ANTES DEL RENDER
+
+
 console.log('🚀 Inicializando aplicación...');
 
-// Bloquear imagen problemática
 const originalImage = window.Image;
 window.Image = function() {
   const image = new originalImage();
@@ -63,6 +64,7 @@ createRoot(document.getElementById('root')).render(
         <Route path='forgot-password' element={<ForgotPassword />} />
         <Route path='reset-password' element={<ResetPassword />} />
         <Route path='my-courses' element={<MyCourses />} />
+        <Route path="/library" component={ResourceLibrary} />
       </Route>
     </Routes>
   </BrowserRouter>
