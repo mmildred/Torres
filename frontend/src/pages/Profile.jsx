@@ -1,10 +1,8 @@
-// Profile.jsx - VERSIÓN CORREGIDA (SIN ABORT CONTROLLER)
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUser } from '../auth';
 import './Profile.css';
 
-// Lista de intereses predefinidos
 const PREDEFINED_INTERESTS = [
   'Programación', 'Diseño UX/UI', 'Matemáticas', 'Ciencias', 'Literatura',
   'Arte', 'Música', 'Deportes', 'Tecnología', 'Emprendimiento',
@@ -50,12 +48,12 @@ export default function Profile() {
       setMessage('');
       const token = localStorage.getItem('token');
       
-      // 🔴 ELIMINAR ABORT CONTROLLER TEMPORALMENTE
+     
       const response = await fetch('http://localhost:4000/auth/profile/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
-        // 🔴 QUITAR signal: controller.signal
+       
       });
 
       if (response.ok) {
@@ -68,7 +66,7 @@ export default function Profile() {
           specialties: userData.specialties || []
         });
       } else if (response.status === 404) {
-        // ✅ FALLBACK A DATOS BÁSICOS
+        
         handleFallbackData();
         setMessage('Perfil básico - Funcionalidad completa disponible pronto');
       } else {
@@ -76,7 +74,7 @@ export default function Profile() {
       }
     } catch (error) {
       console.error('Error cargando perfil:', error);
-      // ✅ EN CUALQUIER ERROR, USAR FALLBACK
+      
       handleFallbackData();
       setMessage('Error cargando perfil. Usando información básica.');
     } finally {
@@ -84,7 +82,6 @@ export default function Profile() {
     }
   };
 
-  // ✅ FUNCIÓN DE FALLBACK REUTILIZABLE
   const handleFallbackData = () => {
     const currentUser = getUser();
     if (currentUser) {
@@ -101,7 +98,6 @@ export default function Profile() {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     
-    // 🔴 EVITAR MÚLTIPLES ENVÍOS
     if (loading) return;
     
     setLoading(true);
@@ -124,10 +120,9 @@ export default function Profile() {
         setEditMode(false);
         setMessage('✅ Perfil actualizado correctamente');
         
-        // ✅ ACTUALIZAR LOCALSTORAGE
         updateLocalStorage(data.user);
       } else if (response.status === 404) {
-        // ✅ FALLBACK: ACTUALIZAR SOLO LOCALSTORAGE
+       
         updateLocalStorage({
           ...user,
           ...formData
@@ -141,8 +136,6 @@ export default function Profile() {
     } catch (error) {
       console.error('Error actualizando perfil:', error);
       setMessage('❌ Error de conexión. Los cambios se guardaron localmente.');
-      
-      // ✅ FALLBACK: GUARDAR LOCALMENTE EN CUALQUIER ERROR
       updateLocalStorage({
         ...user,
         ...formData
@@ -153,7 +146,6 @@ export default function Profile() {
     }
   };
 
-  // ✅ FUNCIÓN REUTILIZABLE PARA ACTUALIZAR LOCALSTORAGE
   const updateLocalStorage = (userData) => {
     const currentUser = getUser();
     const updatedUser = {
@@ -173,7 +165,6 @@ export default function Profile() {
     const file = event.target.files[0];
     if (!file) return;
 
-    // ✅ VALIDACIONES MÁS ESPECÍFICAS
     const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!validImageTypes.includes(file.type)) {
       setMessage('❌ Formato no válido. Use JPEG, PNG, GIF o WebP');
@@ -216,7 +207,7 @@ export default function Profile() {
       setMessage('❌ Error de conexión al subir imagen');
     } finally {
       setAvatarLoading(false);
-      event.target.value = ''; // Reset input
+      event.target.value = ''; 
     }
   };
 
@@ -280,7 +271,6 @@ export default function Profile() {
     return name ? name.charAt(0).toUpperCase() : 'U';
   };
 
-  // ✅ MEJORAR EL COMPONENTE DE CARGA
   if (loading && !user) {
     return (
       <div className="profile-loading">

@@ -1,4 +1,3 @@
-// Courses.jsx - VERSIÓN CON MANEJO OFFLINE
 import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api";
@@ -18,7 +17,6 @@ export default function Courses() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Cargar cursos desde cache
   const loadCachedCourses = () => {
     try {
       const cachedCourses = localStorage.getItem('cached_courses');
@@ -60,7 +58,6 @@ export default function Courses() {
       
       setError(null);
       
-      // ✅ Intentar cargar desde cache primero para mejor UX
       const hasCache = loadCachedCourses();
       
       const res = await api.get("/courses", {
@@ -82,7 +79,6 @@ export default function Courses() {
       
       console.log("📊 Cursos procesados:", coursesWithOwner.length);
       
-      // Buscar específicamente el curso "jojojo"
       const nuevoCurso = coursesWithOwner.find(c => c.title === 'jojojo');
       console.log("🎯 Curso 'jojojo' encontrado?:", nuevoCurso ? "SÍ" : "NO");
       if (nuevoCurso) {
@@ -93,7 +89,6 @@ export default function Courses() {
       setOfflineMode(false);
       setHasFetched(true);
       
-      // ✅ Guardar en cache
       localStorage.setItem('cached_courses', JSON.stringify(coursesWithOwner));
       
     } catch (err) {
@@ -103,7 +98,6 @@ export default function Courses() {
         setOfflineMode(true);
         console.log('🔌 Modo offline activado');
         
-        // Si no hay cache y falló la carga, mostrar error
         if (!loadCachedCourses()) {
           setError('No se puede conectar al servidor y no hay cursos en cache');
         } else {
@@ -122,7 +116,6 @@ export default function Courses() {
     }
   }, [hasFetched, fetchCourses]);
 
-  // ✅ EFECTO OPTIMIZADO PARA CARGAR PROGRESO CON MANEJO OFFLINE
   useEffect(() => {
     if (!user || !hasFetched || !courses.length) return;
 
@@ -130,7 +123,6 @@ export default function Courses() {
     
     (async () => {
       try {
-        // ✅ LIMITAR A SOLO LOS PRIMEROS 8 CURSOS PARA EVITAR SOBRECARGA
         const coursesToCheck = courses.slice(0, 8);
         
         const results = await Promise.allSettled(
@@ -141,7 +133,7 @@ export default function Courses() {
               });
               return [c._id, { ...data, offline: false }];
             } catch (error) {
-              // ✅ ERROR 404 ES NORMAL - NO ESTÁ INSCRITO
+              
               if (error.response?.status === 404) {
                 return [c._id, { 
                   enrolled: false, 
@@ -153,7 +145,6 @@ export default function Courses() {
                 }];
               }
               
-              // ✅ ERROR DE RED - USAR MODO OFFLINE
               if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
                 console.log(`📴 Sin conexión para progreso del curso ${c._id}`);
                 return [c._id, { 
@@ -166,7 +157,6 @@ export default function Courses() {
                 }];
               }
               
-              // ✅ OTRO ERROR - REGRESAR VALORES POR DEFECTO
               console.warn(`Error cargando progreso para curso ${c._id}:`, error.response?.status);
               return [c._id, { 
                 enrolled: false, 
@@ -192,7 +182,6 @@ export default function Courses() {
             ...newProgress
           }));
           
-          // ✅ Guardar progreso en cache
           localStorage.setItem('cached_progress', JSON.stringify({
             ...JSON.parse(localStorage.getItem('cached_progress') || '{}'),
             ...newProgress
@@ -206,7 +195,6 @@ export default function Courses() {
     return () => { cancelled = true; };
   }, [user, hasFetched, courses.length]);
 
-  // ✅ FUNCIÓN PARA CARGAR PROGRESO INDIVIDUAL (PARA INSCRIPCIONES NUEVAS)
   const loadCourseProgress = async (courseId) => {
     try {
       const { data } = await api.get(`/courses/${courseId}/progress/me`);
@@ -217,7 +205,6 @@ export default function Courses() {
         [courseId]: progressData
       }));
       
-      // ✅ Actualizar cache
       const cachedProgress = JSON.parse(localStorage.getItem('cached_progress') || '{}');
       cachedProgress[courseId] = progressData;
       localStorage.setItem('cached_progress', JSON.stringify(cachedProgress));
@@ -237,14 +224,12 @@ export default function Courses() {
       await api.delete(`/courses/${courseId}`);
       setCourses(prev => prev.filter(c => c._id !== courseId));
       
-      // ✅ LIMPIAR PROGRESO DEL CURSO ELIMINADO
       setProgressByCourse(prev => {
         const newProgress = { ...prev };
         delete newProgress[courseId];
         return newProgress;
       });
       
-      // ✅ ACTUALIZAR CACHE
       const cachedCourses = JSON.parse(localStorage.getItem('cached_courses') || '[]');
       const updatedCache = cachedCourses.filter(c => c._id !== courseId);
       localStorage.setItem('cached_courses', JSON.stringify(updatedCache));
@@ -291,14 +276,13 @@ export default function Courses() {
       await api.post(`/courses/${courseId}/enroll`);
       alert("🎉 ¡Te has inscrito exitosamente al curso!");
       
-      // ✅ ACTUALIZAR PROGRESO DESPUÉS DE INSCRIBIRSE
       await loadCourseProgress(courseId);
       
     } catch (err) {
       console.error("Error al inscribirse:", err);
       if (err.response?.status === 400) {
         alert('Ya estás inscrito en este curso');
-        // ✅ SI YA ESTÁ INSCRITO, CARGAR SU PROGRESO
+        
         await loadCourseProgress(courseId);
       } else {
         alert(err.response?.data?.message || 'Error al inscribirse en el curso');
@@ -342,7 +326,6 @@ export default function Courses() {
     fetchCourses();
   };
 
-  // ✅ COMPONENTE DE CARGA MEJORADO
   if (!hasFetched) {
     return (
       <div className="courses-container">
@@ -468,7 +451,7 @@ export default function Courses() {
           </div>
         ) : (
           courses.map((course) => {
-            // ✅ MANEJO SEGURO DEL PROGRESO CON VALORES POR DEFECTO
+            
             const prog = progressByCourse[course._id] || { 
               enrolled: false, 
               progress: 0, 
@@ -546,7 +529,7 @@ export default function Courses() {
                     {course.description && course.description.length > 120 ? "..." : ""}
                   </p>
 
-                  {/* ✅ MOSTRAR PROGRESO SOLO SI ESTÁ INSCRITO */}
+                  {/* MOSTRAR PROGRESO SOLO SI ESTÁ INSCRITO */}
                   {user && isEnrolled && (
                     <div className="progress-container">
                       <div className="progress-header">

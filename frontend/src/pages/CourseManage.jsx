@@ -12,10 +12,10 @@ export default function CourseManage() {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showContentForm, setShowContentForm] = useState(false);
-  const [showUploadForm, setShowUploadForm] = useState(false); // ✅ NUEVO: Formulario de subida
+  const [showUploadForm, setShowUploadForm] = useState(false); 
   const [editingContent, setEditingContent] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false); // ✅ NUEVO: Estado de subida
+  const [uploading, setUploading] = useState(false); 
   
   const [contentForm, setContentForm] = useState({
     title: '',
@@ -26,7 +26,6 @@ export default function CourseManage() {
     file: null
   });
 
-  // ✅ NUEVO: Estado para formulario de subida de archivos
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
@@ -64,7 +63,6 @@ export default function CourseManage() {
     return isAdmin || isOwner || isInstructor;
   };
 
-  // ✅ FUNCIONES DE PUBLICACIÓN DEL CURSO
   const handlePublishCourse = async () => {
     try {
       await api.patch(`/courses/${courseId}/publish`);
@@ -87,7 +85,6 @@ export default function CourseManage() {
     }
   };
 
-  // ✅ CREAR contenido SIN archivo
   const handleContentSubmit = async (e) => {
     e.preventDefault();
     
@@ -135,7 +132,6 @@ export default function CourseManage() {
     }
   };
 
-  // ✅ NUEVO: SUBIR ARCHIVO
   const handleFileUpload = async (e) => {
     e.preventDefault();
     
@@ -162,7 +158,6 @@ export default function CourseManage() {
       
       await fetchCourseData();
       
-      // Reset form
       setUploadForm({
         title: '',
         description: '',
@@ -182,19 +177,17 @@ export default function CourseManage() {
     }
   };
 
-  // ✅ NUEVO: Manejar selección de archivo
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setUploadForm({
         ...uploadForm,
         file: file,
-        title: uploadForm.title || file.name // Usar nombre del archivo como título por defecto
+        title: uploadForm.title || file.name 
       });
     }
   };
 
-  // ✅ EDITAR contenido
   const handleEditContent = (content) => {
     setEditingContent(content);
     setContentForm({
@@ -208,7 +201,6 @@ export default function CourseManage() {
     setShowContentForm(true);
   };
 
-  // ✅ ELIMINAR contenido
   const handleDeleteContent = async (contentId) => {
     if (!confirm('¿Estás seguro de que quieres eliminar este contenido?')) return;
     
@@ -222,7 +214,6 @@ export default function CourseManage() {
     }
   };
 
-  // ✅ PUBLICAR/OCULTAR contenido individual
   const handlePublishToggle = async (contentId, currentStatus) => {
     try {
       await api.patch(`/courses/${courseId}/contents/${contentId}/toggle-publish`);
@@ -233,7 +224,6 @@ export default function CourseManage() {
     }
   };
 
-  // Estados de carga y verificación de permisos
   if (loading) return <div className="loading">Cargando curso...</div>;
   if (!course) return <div className="error">Curso no encontrado</div>;
 

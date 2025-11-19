@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { getUser, logout } from "./auth";
@@ -11,7 +10,6 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef(null);
 
-  // Cerrar menú al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -133,7 +131,7 @@ export default function App() {
                   )}
                 </div>
               ) : (
-                // Usuario no logueado
+             
                 <div className="auth-buttons">
                   <NavLink to="/login" className="auth-link login-link">
                     Iniciar Sesión

@@ -15,7 +15,6 @@ export default function ResourceLibrary() {
     loadAvailableFiles();
     loadDownloadedFiles();
     
-    // Escuchar eventos de descarga completada
     const handleDownloadComplete = (event) => {
       const { file } = event.detail;
       console.log('✅ Descarga completada:', file.title);
