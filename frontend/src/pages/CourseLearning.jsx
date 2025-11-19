@@ -1,4 +1,3 @@
-// CourseLearning.jsx - VERSIÓN MEJORADA
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
@@ -42,7 +41,6 @@ export default function CourseLearning() {
       setCourse(courseRes.data);
       setEnrollment(progressRes.data);
       
-      // Establecer el primer contenido como activo
       const publishedContents = courseRes.data.contents?.filter(content => content.isPublished) || [];
       if (publishedContents.length > 0) {
         setActiveContent(publishedContents[0]);
@@ -61,18 +59,15 @@ export default function CourseLearning() {
     }
   };
 
-  // ✅ FUNCIÓN REAL PARA MARCAR COMO COMPLETADO
   const handleMarkComplete = async (contentId) => {
     try {
       setUpdating(true);
       console.log('🔄 Marcando contenido como completado:', contentId);
       
-      // ✅ LLAMADA REAL A LA API
       const response = await api.post(`/courses/${courseId}/contents/${contentId}/complete`);
       
       console.log('✅ Contenido marcado como completado:', response.data);
-      
-      // ✅ ACTUALIZAR EL ESTADO CON LA RESPUESTA REAL DEL BACKEND
+    
       setEnrollment(prev => ({
         ...prev,
         progress: response.data.progress,
@@ -80,7 +75,7 @@ export default function CourseLearning() {
         totalContents: response.data.totalContents
       }));
       
-      // ✅ RECARGAR LOS DATOS PARA VERIFICAR
+     
       await fetchCourseData();
       
     } catch (error) {
@@ -97,27 +92,24 @@ export default function CourseLearning() {
     }
   };
 
-  // ✅ FUNCIÓN PARA VERIFICAR SI UN CONTENIDO ESTÁ COMPLETADO
   const isContentCompleted = (contentId) => {
     if (!enrollment?.completedContentIds) return false;
     
-    // Buscar en el array de completedContentIds
+
     return enrollment.completedContentIds.some(id => 
       id.toString() === contentId.toString()
     );
   };
 
-  // ✅ VERIFICAR SI EL CURSO ESTÁ COMPLETADO AL 100%
   const isCourseCompleted = enrollment?.progress === 100;
 
   const handleContentClick = (content) => {
     setActiveContent(content);
   };
 
-  // ✅ FUNCIÓN PARA MOSTRAR CERTIFICADO
   const handleShowCertificate = () => {
     alert('🎉 ¡Felicidades! Has completado el curso. Tu certificado estará disponible próximamente.');
-    // Aquí puedes redirigir a una página de certificado cuando la implementes
+    
   };
 
   if (loading) {
@@ -202,7 +194,7 @@ export default function CourseLearning() {
             </div>
           </div>
 
-          {/* ✅ MOSTRAR BOTÓN DE CERTIFICADO SI ESTÁ COMPLETADO */}
+          {/* MOSTRAR BOTÓN DE CERTIFICADO SI ESTÁ COMPLETADO */}
           {isCourseCompleted && (
             <div className="certificate-section">
               <div className="certificate-badge">🏆 Curso Completado</div>
@@ -251,7 +243,7 @@ export default function CourseLearning() {
 
         {/* Área Principal de Contenido */}
         <div className="content-viewer">
-          {/* ✅ MOSTRAR MENSAJE DE FELICITACIONES SI EL CURSO ESTÁ COMPLETADO */}
+          {/* MOSTRAR MENSAJE DE FELICITACIONES SI EL CURSO ESTÁ COMPLETADO */}
           {isCourseCompleted ? (
             <div className="course-completed-section">
               <div className="completion-celebration">

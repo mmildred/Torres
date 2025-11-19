@@ -1,4 +1,3 @@
-// CourseNew.jsx - VERSIÓN MEJORADA
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
@@ -40,8 +39,6 @@ export default function CourseNew() {
       
       alert("🎉 Curso creado exitosamente");
       
-      // ✅ FORZAR RECARGA DE LA PÁGINA DE CURSOS
-      // Esto asegura que el nuevo curso se muestre inmediatamente
       setTimeout(() => {
         navigate("/courses", { 
           state: { shouldRefresh: true } 

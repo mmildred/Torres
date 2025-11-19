@@ -68,7 +68,7 @@ export default function Courses() {
       navigate("/login");
       return;
     }
-    // Redirigir a la pantalla de confirmación de inscripción
+    
     navigate(`/courses/${courseId}/enroll`);
   };
 

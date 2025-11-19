@@ -1,4 +1,3 @@
-// pages/MyCourses.jsx - VERSIÓN CORREGIDA
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
@@ -21,22 +20,19 @@ export default function MyCourses() {
     const loadMyCourses = async () => {
       try {
         setLoading(true);
-        
-        // ✅ OBTENER SOLO LOS CURSOS DEL USUARIO - NUEVA RUTA ESPECÍFICA
+
         const myCoursesRes = await api.get("/courses/my-courses");
         setCourses(myCoursesRes.data);
         
       } catch (error) {
         console.error("Error cargando mis cursos:", error);
-        
-        // ✅ FALLBACK: CARGAR TODOS LOS CURSOS Y FILTRAR LOCALMENTE
+       
         if (error.response?.status === 404) {
           try {
             console.log("Ruta /my-courses no existe, usando fallback...");
             const allCoursesRes = await api.get("/courses");
             const allCourses = allCoursesRes.data;
             
-            // Obtener progreso solo para cursos inscritos
             const coursesWithProgress = await Promise.all(
               allCourses.map(async (course) => {
                 try {
@@ -50,7 +46,7 @@ export default function MyCourses() {
                   }
                   return null;
                 } catch (error) {
-                  return null; // No está inscrito
+                  return null; 
                 }
               })
             );
@@ -69,7 +65,6 @@ export default function MyCourses() {
     loadMyCourses();
   }, [navigate]);
 
-  // ... resto del componente igual
   const getFilteredCourses = () => {
     switch (filter) {
       case "in-progress":

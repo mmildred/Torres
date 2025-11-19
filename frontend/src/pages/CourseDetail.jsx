@@ -1,4 +1,3 @@
-// CourseDetail.jsx - VERSIÓN OPTIMIZADA
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
@@ -23,12 +22,10 @@ export default function CourseDetail() {
   const [enrolling, setEnrolling] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // ✅ FUNCIÓN PARA FORZAR ACTUALIZACIÓN
   const refreshCourseData = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // ✅ MOVER fetchCourseData DENTRO DEL useEffect PARA EVITAR DEPENDENCIAS
   useEffect(() => {
     if (!user) {
       console.log('❌ No hay usuario, redirigiendo a login');
@@ -44,7 +41,6 @@ export default function CourseDetail() {
         
         console.log('📥 Fetching course data for:', courseId);
         
-        // 1) Obtener información del curso
         const courseRes = await api.get(`/courses/${courseId}`);
         if (!isMounted) return;
         
@@ -61,7 +57,6 @@ export default function CourseDetail() {
           console.log("Datos cargados correctamente");
         } catch (error) {
           if (!isMounted) return;
-
           setEnrolled(false);
           setProgress({
             enrolled: false,
@@ -89,13 +84,11 @@ export default function CourseDetail() {
     console.log('🔄 useEffect ejecutado, courseId:', courseId, 'refresh:', refreshTrigger);
     fetchCourseData();
 
-    // Cleanup function
     return () => {
       isMounted = false;
     };
-  }, [courseId, user, navigate, refreshTrigger]); // ✅ Solo estas dependencias
+  }, [courseId, user, navigate, refreshTrigger]); 
 
-  // ✅ FUNCIÓN PARA OBTENER CONTENIDOS VISIBLES
   const getVisibleContents = useCallback(() => {
     if (!course || !course.contents) return [];
     
@@ -107,12 +100,10 @@ export default function CourseDetail() {
       )
     );
 
-    // ✅ Instructores ven TODOS los contenidos
     if (isInstructor) {
       return course.contents;
     }
     
-    // ✅ Estudiantes solo ven contenidos PUBLICADOS
     return course.contents.filter(content => 
       content.isPublished === true
     );
@@ -123,12 +114,11 @@ export default function CourseDetail() {
     try {
       await api.post(`/courses/${courseId}/enroll`);
       setEnrolled(true);
-      // Recargar progreso después de inscribirse
+      
       const progressRes = await api.get(`/courses/${courseId}/progress/me`);
       setProgress(progressRes.data);
       alert("¡Inscripción exitosa! Ahora puedes comenzar el curso.");
       
-      // ✅ FORZAR ACTUALIZACIÓN DESPUÉS DE INSCRIBIRSE
       refreshCourseData();
     } catch (error) {
       console.error('Error inscribiéndose:', error);
@@ -154,7 +144,6 @@ export default function CourseDetail() {
     )
   );
 
-  // ✅ Obtener contenidos visibles según el rol
   const visibleContents = getVisibleContents();
 
   if (loading) {

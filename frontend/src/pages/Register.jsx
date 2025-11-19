@@ -9,11 +9,11 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [inviteRole, setInviteRole] = useState(""); // ✅ NUEVO: Para detectar el rol
+  const [inviteRole, setInviteRole] = useState(""); 
   const [msg, setMsg] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [verifyingCode, setVerifyingCode] = useState(false); // ✅ NUEVO: Para verificar código
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({
     hasMinLength: false,
     hasUpperCase: false,
@@ -22,7 +22,6 @@ export default function Register() {
   });
   const [searchParams] = useSearchParams();
 
-  // ✅ Detectar y verificar código de invitación desde la URL
   useEffect(() => {
     const code = searchParams.get('inviteCode');
     if (code) {
@@ -31,7 +30,6 @@ export default function Register() {
     }
   }, [searchParams]);
 
-  // ✅ NUEVA FUNCIÓN: Verificar el código de invitación
   const verifyInviteCode = async (code) => {
     setVerifyingCode(true);
     try {
@@ -41,17 +39,16 @@ export default function Register() {
         setMsg(`✅ Código válido para ${response.data.role === 'admin' ? 'administrador' : 'profesor'}`);
       } else {
         setMsg(`❌ ${response.data.message}`);
-        setInviteCode(""); // Limpiar código inválido
+        setInviteCode(""); 
       }
     } catch (error) {
-      setMsg("❌ Error verificando código de invitación");
-      setInviteCode(""); // Limpiar código en caso de error
+      setMsg(" Error verificando código de invitación");
+      setInviteCode("");
     } finally {
       setVerifyingCode(false);
     }
   };
 
-  // ✅ Validar contraseña en tiempo real
   useEffect(() => {
     const hasMinLength = password.length >= 8;
     const hasUpperCase = /[A-Z]/.test(password);
@@ -69,32 +66,27 @@ export default function Register() {
     e.preventDefault();
     setMsg("");
 
-    // ✅ Validaciones mejoradas
     if (!name || !email || !password) {
       setMsg("Por favor completa todos los campos.");
       return;
     }
 
-    // ✅ Validación de nombre
     if (name.trim().length < 2) {
       setMsg("El nombre debe tener al menos 2 caracteres.");
       return;
     }
 
-    // ✅ Validación de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setMsg("Por favor ingresa un correo electrónico válido.");
       return;
     }
 
-    // ✅ Validación de contraseña segura
     if (!passwordStrength.isValid) {
       setMsg("La contraseña no cumple con los requisitos de seguridad.");
       return;
     }
 
-    // ✅ Validar que el código sigue siendo válido
     if (inviteCode && !inviteRole) {
       setMsg("Por favor verifica que el código de invitación sea válido.");
       return;
@@ -103,7 +95,6 @@ export default function Register() {
     try {
       setLoading(true);
       
-      // ✅ DECIDIR qué endpoint usar basado en si hay código de invitación
       let endpoint = "/auth/register";
       let payload = { name, email, password };
       
@@ -115,7 +106,6 @@ export default function Register() {
       const res = await api.post(endpoint, payload);
       saveAuth(res.data.token, res.data.user);
       
-      // ✅ Mensaje personalizado según el rol
       const roleMessage = inviteRole === 'admin' 
         ? "¡Bienvenido/a Administrador/a!" 
         : inviteRole === 'teacher' 
@@ -138,7 +128,6 @@ export default function Register() {
   const h = new Date().getHours();
   const saludo = h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches";
 
-  // ✅ Determinar el título y mensaje según el rol
   const getRoleInfo = () => {
     if (inviteRole === 'admin') {
       return {

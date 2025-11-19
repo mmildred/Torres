@@ -1,4 +1,3 @@
-// CourseContents.jsx - VERSIÓN CORREGIDA
 import React, { useState, useEffect } from "react";
 import downloadManager from "../offline/downloadManager";
 import "./CourseContents.css";
@@ -13,7 +12,6 @@ export default function CourseContents({
   const [downloadedFiles, setDownloadedFiles] = useState({});
   const [downloading, setDownloading] = useState({});
 
-  // Cargar estado de archivos descargados
   useEffect(() => {
     loadDownloadedFiles();
     
@@ -29,7 +27,6 @@ export default function CourseContents({
         [file.fileId]: false
       }));
 
-      // ✅ MOSTRAR ALERTA SI EL ARCHIVO ESTÁ INCOMPLETO
       if (isIncomplete) {
         alert(`⚠️ ${message}\n\nPuedes intentar abrirlo, pero es posible que no funcione correctamente.`);
       }
@@ -55,7 +52,6 @@ export default function CourseContents({
     }
   };
 
-  // ✅ SOLO UNA FUNCIÓN handleDownload - VERSIÓN MEJORADA
   const handleDownload = async (content) => {
     if (!content.filePath) return;
     
@@ -85,7 +81,6 @@ export default function CourseContents({
     } catch (error) {
       console.error('Error descargando archivo:', error);
       
-      // ✅ MEJOR MENSAJE DE ERROR
       let errorMessage = `Error descargando "${content.title}": ${error.message}`;
       
       if (error.message.includes('incompleto')) {
@@ -107,7 +102,6 @@ export default function CourseContents({
     try {
       console.log('🔄 Intentando abrir archivo offline:', content._id);
       
-      // Verificación del estado
       const status = await downloadManager.verifyFileDownload(content._id);
       console.log('📊 Estado del archivo:', status);
       
@@ -116,7 +110,6 @@ export default function CourseContents({
         return;
       }
       
-      // Verificar discrepancia de tamaño
       if (status.metadata && status.cacheUrl) {
         const cache = await caches.open('edu-files-v1');
         const response = await cache.match(status.cacheUrl);
@@ -125,7 +118,6 @@ export default function CourseContents({
           if (blob.size < 1000 && status.metadata.fileSize > 1000) {
             console.warn('⚠️ DISCREPANCIA: Metadata dice', status.metadata.fileSize, 'pero cache tiene', blob.size);
             
-            // Mostrar alerta informativa
             if (window.confirm(`El archivo "${content.title}" parece estar incompleto (${blob.size} bytes de ${status.metadata.fileSize} esperados). ¿Quieres re-descargarlo automáticamente?`)) {
               console.log('🔄 Re-descargando por discrepancia...');
               await handleDownload(content);
@@ -135,7 +127,6 @@ export default function CourseContents({
         }
       }
       
-      // USAR LA NUEVA FUNCIÓN CON REPARACIÓN MEJORADA
       await downloadManager.openFileWithRepair(content._id);
       
     } catch (error) {
@@ -148,7 +139,6 @@ export default function CourseContents({
       } else if (error.message.includes('incompleto') || error.message.includes('discrepancia')) {
         errorMessage += '\n\nEl archivo se descargó incompleto. Se intentará re-descargar automáticamente.';
         
-        // Re-descargar automáticamente después de 1 segundo
         setTimeout(() => {
           console.log('🔄 Re-descargando archivo automáticamente por error...');
           handleDownload(content);
@@ -156,7 +146,6 @@ export default function CourseContents({
       } else if (error.message.includes('no encontrado') || error.message.includes('corrupto')) {
         errorMessage += '\n\nSe intentará re-descargar automáticamente.';
         
-        // Re-descargar automáticamente
         setTimeout(() => {
           console.log('🔄 Re-descargando archivo automáticamente...');
           handleDownload(content);
@@ -189,7 +178,6 @@ export default function CourseContents({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Filtrar contenidos visibles
   const visibleContents = isInstructor 
     ? course.contents || []
     : (course.contents || []).filter(content => content.isPublished === true);

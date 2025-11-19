@@ -92,7 +92,6 @@ export default function Admin() {
     }
   };
 
-  // ✅ FUNCIÓN PARA GENERAR CÓDIGO DE PROFESOR
   const generateTeacherInviteCode = async () => {
     setGenerating(true);
     try {
@@ -126,7 +125,6 @@ export default function Admin() {
     }
   };
 
-  // ✅ NUEVA FUNCIÓN PARA GENERAR CÓDIGO DE ADMINISTRADOR
   const generateAdminInviteCode = async () => {
     setGeneratingAdmin(true);
     try {
@@ -351,7 +349,7 @@ export default function Admin() {
                       <div className="code-info">
                         <div className="code-header">
                           <span className="code-text">{code.code}</span>
-                          {/* ✅ AGREGADO: Mostrar el tipo de rol */}
+                          {/* Mostrar el tipo de rol */}
                           <span className={`code-role role-${code.role}`}>
                             {code.role === 'admin' ? '👑 Admin' : '👨‍🏫 Profesor'}
                           </span>
@@ -413,7 +411,7 @@ export default function Admin() {
                       <span className="user-email">{user.email}</span>
                     </div>
                     <div className="user-meta">
-                      {/* ✅ ACTUALIZADO: Mostrar también administradores */}
+                      {/*  Mostrar también administradores */}
                       <span className={`user-role ${user.role}`}>
                         {user.role === 'admin' ? '👑 Admin' : 
                          user.role === 'teacher' ? '👨‍🏫 Profesor' : '🎓 Estudiante'}

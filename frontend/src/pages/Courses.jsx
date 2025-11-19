@@ -95,7 +95,6 @@ export default function Courses() {
         setOfflineMode(true);
         console.log("🔌 Modo offline activado");
 
-        // Si no hay cache y falló la carga, mostrar error
         if (!loadCachedCourses()) {
           setError("No se puede conectar al servidor y no hay cursos en cache");
         } else {
