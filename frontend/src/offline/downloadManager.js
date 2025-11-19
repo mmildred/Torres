@@ -38,63 +38,124 @@ class DownloadManager {
   }
 
   async downloadFile(file) {
-    try {
-      console.log('📥 Iniciando descarga offline:', file.title);
+  try {
+    console.log('📥 Iniciando descarga offline:', file.title);
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Usuario no autenticado');
-      }
-
-      const response = await fetch(`http://localhost:4000/api/courses/files/${file.fileId || file._id}/download`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      console.log('📦 Blob obtenido, tamaño:', blob.size, 'bytes');
-
-      // Guardar en Cache Storage
-      const cache = await caches.open('edu-files-v1');
-      const cacheUrl = `/offline-files/${file.fileId || file._id}-${Date.now()}`;
-      await cache.put(cacheUrl, new Response(blob));
-      console.log('💾 Archivo guardado en cache:', cacheUrl);
-
-      // Guardar metadatos en IndexedDB
-      const fileMetadata = {
-        fileId: file.fileId || file._id,
-        title: file.title,
-        fileType: file.fileType || file.type || 'document',
-        fileSize: file.fileSize || blob.size,
-        fileName: file.fileName || file.title,
-        filePath: file.filePath,
-        cacheUrl: cacheUrl,
-        downloadedAt: new Date(),
-        subject: file.subject,
-        educationalLevel: file.educationalLevel,
-        courseId: file.courseId,
-        courseTitle: file.courseTitle
-      };
-
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      await store.put(fileMetadata);
-
-      console.log('✅ Archivo descargado para uso offline:', file.title);
-      this.notifyDownloadComplete(file);
-      
-      return true;
-    } catch (error) {
-      console.error('❌ Error descargando archivo:', error);
-      this.notifyDownloadError(file, error.message);
-      return false;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Usuario no autenticado');
     }
+
+    // DEBUG: Verificar qué devuelve realmente el servidor
+    console.log('🔍 DEBUG: Verificando respuesta del servidor...');
+    const response = await fetch(`http://localhost:4000/api/courses/files/${file.fileId || file._id}/download`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    console.log('📊 DEBUG - Estado respuesta:', response.status, response.statusText);
+    console.log('📊 DEBUG - Headers:', Object.fromEntries(response.headers.entries()));
+    
+    // Leer la respuesta como texto para ver si es un error
+    const responseText = await response.text();
+    console.log('🔍 DEBUG - Contenido respuesta (primeros 500 chars):', responseText.substring(0, 500));
+    console.log('🔍 DEBUG - Longitud total respuesta:', responseText.length);
+
+    // Si la respuesta es muy corta y parece un mensaje de error
+    if (responseText.length < 1000 && (responseText.includes('error') || responseText.includes('Error'))) {
+      console.error('❌ El servidor devolvió un error:', responseText);
+      throw new Error(`Error del servidor: ${responseText}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    // Convertir de vuelta a blob
+    const blob = new Blob([responseText], { 
+      type: response.headers.get('content-type') || 'application/octet-stream' 
+    });
+
+    console.log('📦 Blob obtenido, tamaño:', blob.size, 'bytes');
+
+    // VERIFICACIÓN MÁS FLEXIBLE - Solo alertar pero no bloquear
+    if (blob.size < 1000 && file.fileSize > 1000) {
+      console.warn('⚠️ Archivo descargado parece incompleto:', blob.size, 'bytes vs esperados:', file.fileSize);
+      
+      // PERMITIR QUE CONTINÚE PERO MOSTRAR ALERTA AL USUARIO
+      if (!window.confirm(`El archivo "${file.title}" parece estar incompleto (${blob.size} bytes de ${file.fileSize} esperados). ¿Quieres intentar abrirlo de todos modos?`)) {
+        throw new Error('Usuario canceló la descarga por archivo incompleto');
+      }
+      // Si el usuario acepta, continuar con la descarga
+    }
+
+    // Resto del código igual...
+    const cache = await caches.open('edu-files-v1');
+    const cacheUrl = `/offline-files/${file.fileId || file._id}-${Date.now()}`;
+    
+    const saveResponse = new Response(blob, {
+      headers: {
+        'Content-Type': response.headers.get('content-type') || 'application/octet-stream',
+        'Content-Length': blob.size
+      }
+    });
+    
+    await cache.put(cacheUrl, saveResponse);
+    console.log('💾 Archivo guardado en cache:', cacheUrl, 'Tamaño:', blob.size, 'bytes');
+
+    // Verificar que se guardó correctamente
+    const verifyCache = await cache.match(cacheUrl);
+    if (!verifyCache) {
+      throw new Error('Error: Archivo no se guardó en cache correctamente');
+    }
+
+    const fileMetadata = {
+      fileId: file.fileId || file._id,
+      title: file.title,
+      fileType: file.fileType || file.type || 'document',
+      fileSize: blob.size, // Usar el tamaño REAL del blob
+      fileName: file.fileName || file.title,
+      filePath: file.filePath,
+      cacheUrl: cacheUrl,
+      downloadedAt: new Date(),
+      subject: file.subject,
+      educationalLevel: file.educationalLevel,
+      courseId: file.courseId,
+      courseTitle: file.courseTitle,
+      // ✅ AGREGAR FLAG PARA ARCHIVOS INCOMPLETOS
+      potentiallyIncomplete: (blob.size < 1000 && file.fileSize > 1000)
+    };
+
+    const transaction = this.db.transaction([this.storeName], 'readwrite');
+    const store = transaction.objectStore(this.storeName);
+    await store.put(fileMetadata);
+
+    console.log('✅ Archivo descargado para uso offline:', file.title, 'Tamaño:', blob.size, 'bytes');
+    
+    // ✅ NOTIFICAR SI ES INCOMPLETO
+    if (fileMetadata.potentiallyIncomplete) {
+      this.notifyDownloadComplete(file, true); // true = incompleto
+    } else {
+      this.notifyDownloadComplete(file);
+    }
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error descargando archivo:', error);
+    
+    // Limpiar archivo corrupto si existe
+    try {
+      await this.deleteDownloadedFile(file.fileId || file._id);
+    } catch (cleanError) {
+      console.log('⚠️ No se pudo limpiar archivo corrupto:', cleanError);
+    }
+    
+    this.notifyDownloadError(file, error.message);
+    return false;
   }
+}
 
   async getDownloadedFiles() {
     try {
@@ -348,13 +409,19 @@ class DownloadManager {
   }
 
   // Notificaciones para la UI
-  notifyDownloadComplete(file) {
-    const event = new CustomEvent('downloadComplete', {
-      detail: { file }
-    });
-    window.dispatchEvent(event);
-    console.log('📢 Evento downloadComplete disparado');
-  }
+notifyDownloadComplete(file, isIncomplete = false) {
+  const event = new CustomEvent('downloadComplete', {
+    detail: { 
+      file,
+      isIncomplete, // ✅ NUEVO: indicar si está incompleto
+      message: isIncomplete ? 
+        `Archivo descargado pero puede estar incompleto (${file.fileSize} bytes esperados)` :
+        `Archivo descargado correctamente`
+    }
+  });
+  window.dispatchEvent(event);
+  console.log('📢 Evento downloadComplete disparado', isIncomplete ? '(INCOMPLETO)' : '');
+}
 
   notifyDownloadError(file, error) {
     const event = new CustomEvent('downloadError', {
@@ -404,22 +471,58 @@ class DownloadManager {
   }
 
   // NUEVO MÉTODO: Abrir archivo con reparación automática
-  async openFileWithRepair(fileId) {
-    try {
-      // Primero intentar abrir normalmente
-      return await this.openFile(fileId);
-    } catch (error) {
-      console.log('🔄 Fallo al abrir, intentando reparar...');
+async openFileWithRepair(fileId) {
+  try {
+    console.log('🔄 Abriendo con reparación automática:', fileId);
+    
+    // Verificar estado primero
+    const status = await this.verifyFileDownload(fileId);
+    
+    if (!status.exists) {
+      throw new Error('Archivo no disponible offline');
+    }
+    
+    // Si hay discrepancia de tamaño, reparar automáticamente
+    if (status.metadata && status.cacheUrl) {
+      const cache = await caches.open('edu-files-v1');
+      const response = await cache.match(status.cacheUrl);
       
-      // Si falla, reparar y volver a intentar
+      if (response) {
+        const blob = await response.blob();
+        console.log('📊 Verificación tamaño - Cache:', blob.size, 'Metadata:', status.metadata.fileSize);
+        
+        // Si hay gran discrepancia, reparar
+        if (blob.size < 1000 && status.metadata.fileSize > 1000) {
+          console.log('🔧 Discrepancia detectada, reparando automáticamente...');
+          const repaired = await this.repairCorruptedFile(fileId);
+          if (repaired) {
+            console.log('✅ Reparado, intentando abrir nuevamente...');
+            return await this.openFile(fileId);
+          }
+        }
+      }
+    }
+    
+    // Si no hay discrepancia o no se pudo reparar, abrir normalmente
+    return await this.openFile(fileId);
+    
+  } catch (error) {
+    console.error('❌ Error en openFileWithRepair:', error);
+    
+    // Intentar reparación de emergencia
+    try {
+      console.log('🚨 Reparación de emergencia...');
       const repaired = await this.repairCorruptedFile(fileId);
       if (repaired) {
         return await this.openFile(fileId);
       }
-      
-      throw error;
+    } catch (repairError) {
+      console.error('❌ Reparación de emergencia falló:', repairError);
     }
+    
+    throw error;
   }
+}
 }
 
 // Instancia global - FUERA DE LA CLASE

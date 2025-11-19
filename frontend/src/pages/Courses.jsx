@@ -1,4 +1,4 @@
-// Courses.jsx - VERSIÓN OPTIMIZADA
+// Courses.jsx - VERSIÓN CON MANEJO OFFLINE
 import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api";
@@ -11,10 +11,35 @@ export default function Courses() {
   const [progressByCourse, setProgressByCourse] = useState({});
   const [loadingStates, setLoadingStates] = useState({});
   const [error, setError] = useState(null);
+  const [deletingById, setDeletingById] = useState({});
+  const [offlineMode, setOfflineMode] = useState(false);
+  
   const user = getUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const [deletingById, setDeletingById] = useState({});
+
+  // ✅ Cargar cursos desde cache
+  const loadCachedCourses = () => {
+    try {
+      const cachedCourses = localStorage.getItem('cached_courses');
+      const cachedProgress = localStorage.getItem('cached_progress');
+      
+      if (cachedCourses) {
+        console.log('📂 Cargando cursos desde cache');
+        const parsedCourses = JSON.parse(cachedCourses);
+        setCourses(parsedCourses);
+        
+        if (cachedProgress) {
+          setProgressByCourse(JSON.parse(cachedProgress));
+        }
+        
+        return parsedCourses.length > 0;
+      }
+    } catch (error) {
+      console.error('Error cargando cache:', error);
+    }
+    return false;
+  };
 
   const isCourseInstructor = (course) => {
     if (!user || !course) return false;
@@ -28,42 +53,68 @@ export default function Courses() {
     return isAdmin || isOwner || isInstructor;
   };
 
-const fetchCourses = useCallback(async () => {
-  try {
-    console.log("🔄 Iniciando carga de cursos...");
-    console.log("👤 Usuario actual:", user);
-    
-    setError(null);
-    const res = await api.get("/courses");
-    
-    console.log("✅ Respuesta del servidor - cantidad:", res.data.length);
-    console.log("📋 Cursos recibidos:", res.data);
-    
-    const coursesWithOwner = res.data.map(course => ({
-      ...course,
-      owner: course.owner || { name: "Administrador" },
-      enrolled: false,
-      progress: 0
-    }));
-    
-    console.log("📊 Cursos procesados:", coursesWithOwner.length);
-    
-    // Buscar específicamente el curso "jojojo"
-    const nuevoCurso = coursesWithOwner.find(c => c.title === 'jojojo');
-    console.log("🎯 Curso 'jojojo' encontrado?:", nuevoCurso ? "SÍ" : "NO");
-    if (nuevoCurso) {
-      console.log("📝 Detalles del curso encontrado:", nuevoCurso);
+  const fetchCourses = useCallback(async () => {
+    try {
+      console.log("🔄 Iniciando carga de cursos...");
+      console.log("👤 Usuario actual:", user);
+      
+      setError(null);
+      
+      // ✅ Intentar cargar desde cache primero para mejor UX
+      const hasCache = loadCachedCourses();
+      
+      const res = await api.get("/courses", {
+        timeout: 10000,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      console.log("✅ Respuesta del servidor - cantidad:", res.data.length);
+      console.log("📋 Cursos recibidos:", res.data);
+      
+      const coursesWithOwner = res.data.map(course => ({
+        ...course,
+        owner: course.owner || { name: "Administrador" },
+        enrolled: false,
+        progress: 0
+      }));
+      
+      console.log("📊 Cursos procesados:", coursesWithOwner.length);
+      
+      // Buscar específicamente el curso "jojojo"
+      const nuevoCurso = coursesWithOwner.find(c => c.title === 'jojojo');
+      console.log("🎯 Curso 'jojojo' encontrado?:", nuevoCurso ? "SÍ" : "NO");
+      if (nuevoCurso) {
+        console.log("📝 Detalles del curso encontrado:", nuevoCurso);
+      }
+      
+      setCourses(coursesWithOwner);
+      setOfflineMode(false);
+      setHasFetched(true);
+      
+      // ✅ Guardar en cache
+      localStorage.setItem('cached_courses', JSON.stringify(coursesWithOwner));
+      
+    } catch (err) {
+      console.error("❌ Error cargando cursos:", err);
+      
+      if (err.code === 'ERR_NETWORK' || err.code === 'ECONNREFUSED') {
+        setOfflineMode(true);
+        console.log('🔌 Modo offline activado');
+        
+        // Si no hay cache y falló la carga, mostrar error
+        if (!loadCachedCourses()) {
+          setError('No se puede conectar al servidor y no hay cursos en cache');
+        } else {
+          setError('Modo offline: mostrando cursos en cache');
+        }
+      } else {
+        setError(err.response?.data?.message || "Error al cargar los cursos");
+      }
+      setHasFetched(true);
     }
-    
-    setCourses(coursesWithOwner);
-    setHasFetched(true);
-    
-  } catch (err) {
-    console.error("❌ Error cargando cursos:", err);
-    setError(err.response?.data?.message || "Error al cargar los cursos");
-    setHasFetched(true);
-  }
-}, [user]);
+  }, [user]);
 
   useEffect(() => {
     if (!hasFetched) {
@@ -71,7 +122,7 @@ const fetchCourses = useCallback(async () => {
     }
   }, [hasFetched, fetchCourses]);
 
-  // ✅ EFECTO OPTIMIZADO PARA CARGAR PROGRESO
+  // ✅ EFECTO OPTIMIZADO PARA CARGAR PROGRESO CON MANEJO OFFLINE
   useEffect(() => {
     if (!user || !hasFetched || !courses.length) return;
 
@@ -85,8 +136,10 @@ const fetchCourses = useCallback(async () => {
         const results = await Promise.allSettled(
           coursesToCheck.map(async (c) => {
             try {
-              const { data } = await api.get(`/courses/${c._id}/progress/me`);
-              return [c._id, data];
+              const { data } = await api.get(`/courses/${c._id}/progress/me`, {
+                timeout: 5000
+              });
+              return [c._id, { ...data, offline: false }];
             } catch (error) {
               // ✅ ERROR 404 ES NORMAL - NO ESTÁ INSCRITO
               if (error.response?.status === 404) {
@@ -95,9 +148,24 @@ const fetchCourses = useCallback(async () => {
                   progress: 0, 
                   completedContents: 0, 
                   totalContents: 0,
-                  error: 'not_enrolled'
+                  error: 'not_enrolled',
+                  offline: false
                 }];
               }
+              
+              // ✅ ERROR DE RED - USAR MODO OFFLINE
+              if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+                console.log(`📴 Sin conexión para progreso del curso ${c._id}`);
+                return [c._id, { 
+                  enrolled: false, 
+                  progress: 0, 
+                  completedContents: 0, 
+                  totalContents: 0,
+                  error: 'offline',
+                  offline: true
+                }];
+              }
+              
               // ✅ OTRO ERROR - REGRESAR VALORES POR DEFECTO
               console.warn(`Error cargando progreso para curso ${c._id}:`, error.response?.status);
               return [c._id, { 
@@ -105,7 +173,8 @@ const fetchCourses = useCallback(async () => {
                 progress: 0, 
                 completedContents: 0, 
                 totalContents: 0,
-                error: 'unknown'
+                error: 'unknown',
+                offline: false
               }];
             }
           })
@@ -116,9 +185,17 @@ const fetchCourses = useCallback(async () => {
             .filter(result => result.status === 'fulfilled')
             .map(result => result.value);
           
+          const newProgress = Object.fromEntries(successfulResults);
+          
           setProgressByCourse(prev => ({
             ...prev,
-            ...Object.fromEntries(successfulResults)
+            ...newProgress
+          }));
+          
+          // ✅ Guardar progreso en cache
+          localStorage.setItem('cached_progress', JSON.stringify({
+            ...JSON.parse(localStorage.getItem('cached_progress') || '{}'),
+            ...newProgress
           }));
         }
       } catch (e) {
@@ -127,18 +204,25 @@ const fetchCourses = useCallback(async () => {
     })();
 
     return () => { cancelled = true; };
-  }, [user, hasFetched, courses.length]); // ✅ Solo depende de courses.length, no del array completo
+  }, [user, hasFetched, courses.length]);
 
   // ✅ FUNCIÓN PARA CARGAR PROGRESO INDIVIDUAL (PARA INSCRIPCIONES NUEVAS)
   const loadCourseProgress = async (courseId) => {
     try {
       const { data } = await api.get(`/courses/${courseId}/progress/me`);
+      const progressData = { ...data, offline: false };
+      
       setProgressByCourse(prev => ({
         ...prev,
-        [courseId]: data
+        [courseId]: progressData
       }));
+      
+      // ✅ Actualizar cache
+      const cachedProgress = JSON.parse(localStorage.getItem('cached_progress') || '{}');
+      cachedProgress[courseId] = progressData;
+      localStorage.setItem('cached_progress', JSON.stringify(cachedProgress));
+      
     } catch (error) {
-      // Manejar error silenciosamente
       console.warn(`Error cargando progreso individual para ${courseId}:`, error);
     }
   };
@@ -159,6 +243,15 @@ const fetchCourses = useCallback(async () => {
         delete newProgress[courseId];
         return newProgress;
       });
+      
+      // ✅ ACTUALIZAR CACHE
+      const cachedCourses = JSON.parse(localStorage.getItem('cached_courses') || '[]');
+      const updatedCache = cachedCourses.filter(c => c._id !== courseId);
+      localStorage.setItem('cached_courses', JSON.stringify(updatedCache));
+      
+      const cachedProgress = JSON.parse(localStorage.getItem('cached_progress') || '{}');
+      delete cachedProgress[courseId];
+      localStorage.setItem('cached_progress', JSON.stringify(cachedProgress));
       
       alert("Curso eliminado correctamente.");
     } catch (err) {
@@ -243,6 +336,12 @@ const fetchCourses = useCallback(async () => {
     });
   };
 
+  const retryConnection = () => {
+    setOfflineMode(false);
+    setError(null);
+    fetchCourses();
+  };
+
   // ✅ COMPONENTE DE CARGA MEJORADO
   if (!hasFetched) {
     return (
@@ -255,16 +354,31 @@ const fetchCourses = useCallback(async () => {
     );
   }
 
-  if (error && hasFetched) {
+  if (error && hasFetched && courses.length === 0) {
     return (
       <div className="courses-container">
         <div className="error-state">
           <div className="error-icon">⚠️</div>
           <h3>Error al cargar los cursos</h3>
           <p>{error}</p>
-          <button onClick={fetchCourses} className="btn btn-primary">
-            Reintentar
-          </button>
+          <div className="error-actions">
+            <button onClick={retryConnection} className="btn btn-primary">
+              🔄 Reintentar conexión
+            </button>
+            <button onClick={() => window.location.reload()} className="btn btn-outline">
+              🔃 Recargar página
+            </button>
+          </div>
+          {offlineMode && (
+            <div className="troubleshooting">
+              <h4>Solucionar problemas:</h4>
+              <ul>
+                <li>✅ Verifica que el servidor backend esté corriendo</li>
+                <li>✅ Ejecuta <code>npm start</code> en la carpeta del backend</li>
+                <li>✅ Verifica que el puerto 4000 esté disponible</li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -272,6 +386,19 @@ const fetchCourses = useCallback(async () => {
 
   return (
     <div className="courses-container">
+      {/* ✅ BANNER DE MODO OFFLINE */}
+      {offlineMode && (
+        <div className="offline-banner">
+          <div className="offline-content">
+            <span>⚡ Modo offline</span>
+            <p>Mostrando versión en cache. Algunas funciones pueden estar limitadas.</p>
+            <button className="btn btn-sm btn-outline" onClick={retryConnection}>
+              🔄 Reintentar conexión
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="courses-header">
         <h2 className="title">Catálogo de Cursos</h2>
         <p className="subtitle">
@@ -318,14 +445,25 @@ const fetchCourses = useCallback(async () => {
           <div className="empty-state">
             <div className="empty-icon">📚</div>
             <h3>No hay cursos disponibles</h3>
-            <p>Pronto agregaremos nuevos cursos a nuestro catálogo</p>
-            {user?.role === "teacher" && (
-              <button 
-                onClick={() => navigate("/courses/new")}
-                className="btn btn-primary"
-              >
-                Crear Primer Curso
+            <p>
+              {offlineMode 
+                ? "No hay cursos en cache. Conéctate a internet para cargar los cursos."
+                : "Pronto agregaremos nuevos cursos a nuestro catálogo"
+              }
+            </p>
+            {offlineMode ? (
+              <button className="btn btn-primary" onClick={retryConnection}>
+                🔄 Reintentar conexión
               </button>
+            ) : (
+              user?.role === "teacher" && (
+                <button 
+                  onClick={() => navigate("/courses/new")}
+                  className="btn btn-primary"
+                >
+                  Crear Primer Curso
+                </button>
+              )
             )}
           </div>
         ) : (
@@ -335,7 +473,8 @@ const fetchCourses = useCallback(async () => {
               enrolled: false, 
               progress: 0, 
               completedContents: 0, 
-              totalContents: 0 
+              totalContents: 0,
+              offline: false
             };
             
             const isLoading = loadingStates[course._id];
@@ -354,7 +493,7 @@ const fetchCourses = useCallback(async () => {
                     onError={(e) => {
                       e.target.src = "https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80";
                     }}
-                    loading="lazy" // ✅ OPTIMIZACIÓN DE CARGA
+                    loading="lazy"
                   />
                   <div className="course-category">
                     {course.category || "General"}
@@ -371,6 +510,13 @@ const fetchCourses = useCallback(async () => {
                   {isEnrolled && (
                     <div className="enrolled-badge">
                       ✅ Inscrito
+                    </div>
+                  )}
+                  
+                  {/* ✅ BADGE DE OFFLINE */}
+                  {prog.offline && (
+                    <div className="offline-badge">
+                      📴 Offline
                     </div>
                   )}
                 </div>
@@ -404,7 +550,9 @@ const fetchCourses = useCallback(async () => {
                   {user && isEnrolled && (
                     <div className="progress-container">
                       <div className="progress-header">
-                        <span className="progress-label">Tu progreso</span>
+                        <span className="progress-label">
+                          Tu progreso {prog.offline && '(offline)'}
+                        </span>
                         <span className="progress-percent">{prog.progress}%</span>
                       </div>
                       <div className="progress-bar">
@@ -457,10 +605,11 @@ const fetchCourses = useCallback(async () => {
                         <button 
                           className="btn btn-primary"
                           onClick={() => handleEnroll(course._id)}
-                          disabled={isLoading}
+                          disabled={isLoading || offlineMode}
                         >
                           <span className="btn-icon">🎯</span>
-                          {isLoading ? "Inscribiendo..." : "Inscribirse"}
+                          {isLoading ? "Inscribiendo..." : 
+                           offlineMode ? "Sin conexión" : "Inscribirse"}
                         </button>
                       )
                     ) : (
@@ -477,7 +626,7 @@ const fetchCourses = useCallback(async () => {
                       <button
                         className="btn btn-danger"
                         onClick={() => handleDeleteCourse(course._id)}
-                        disabled={!!deletingById[course._id]}
+                        disabled={!!deletingById[course._id] || offlineMode}
                         title="Borrar curso"
                       >
                         <span className="btn-icon">

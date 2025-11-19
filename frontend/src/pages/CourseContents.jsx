@@ -1,4 +1,4 @@
-// CourseContents.jsx - VERSIÓN CON DESCARGAS OFFLINE
+// CourseContents.jsx - VERSIÓN CORREGIDA
 import React, { useState, useEffect } from "react";
 import downloadManager from "../offline/downloadManager";
 import "./CourseContents.css";
@@ -17,9 +17,9 @@ export default function CourseContents({
   useEffect(() => {
     loadDownloadedFiles();
     
-    // Escuchar eventos de descarga completada
     const handleDownloadComplete = (event) => {
-      const { file } = event.detail;
+      const { file, isIncomplete, message } = event.detail;
+      
       setDownloadedFiles(prev => ({
         ...prev,
         [file.fileId]: true
@@ -28,6 +28,11 @@ export default function CourseContents({
         ...prev,
         [file.fileId]: false
       }));
+
+      // ✅ MOSTRAR ALERTA SI EL ARCHIVO ESTÁ INCOMPLETO
+      if (isIncomplete) {
+        alert(`⚠️ ${message}\n\nPuedes intentar abrirlo, pero es posible que no funcione correctamente.`);
+      }
     };
 
     window.addEventListener('downloadComplete', handleDownloadComplete);
@@ -50,6 +55,7 @@ export default function CourseContents({
     }
   };
 
+  // ✅ SOLO UNA FUNCIÓN handleDownload - VERSIÓN MEJORADA
   const handleDownload = async (content) => {
     if (!content.filePath) return;
     
@@ -78,7 +84,17 @@ export default function CourseContents({
       }
     } catch (error) {
       console.error('Error descargando archivo:', error);
-      alert(`Error descargando "${content.title}": ${error.message}`);
+      
+      // ✅ MEJOR MENSAJE DE ERROR
+      let errorMessage = `Error descargando "${content.title}": ${error.message}`;
+      
+      if (error.message.includes('incompleto')) {
+        errorMessage += '\n\nPosibles soluciones:\n• Verifica tu conexión a internet\n• El archivo puede estar corrupto en el servidor\n• Intenta descargarlo más tarde';
+      } else if (error.message.includes('servidor')) {
+        errorMessage += '\n\nProblema del servidor. Contacta al administrador.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setDownloading(prev => ({
         ...prev,
@@ -87,55 +103,69 @@ export default function CourseContents({
     }
   };
 
-const handleOpenOffline = async (content) => {
-  try {
-    console.log('🔄 Intentando abrir archivo offline:', content._id);
-    
-    // Verificación del estado
-    const status = await downloadManager.verifyFileDownload(content._id);
-    console.log('📊 Estado del archivo:', status);
-    
-    if (!status.exists) {
-      alert('El archivo no está disponible offline. Intenta descargarlo nuevamente.');
-      return;
-    }
-    
-    // Verificar discrepancia de tamaño (solo para log, no para bloquear)
-    if (status.metadata && status.metadata.fileSize > 1000) {
-      const cache = await caches.open('edu-files-v1');
-      const response = await cache.match(status.cacheUrl);
-      if (response) {
-        const blob = await response.blob();
-        if (blob.size < 1000 && status.metadata.fileSize > 1000) {
-          console.warn('⚠️ DISCREPANCIA: Metadata dice', status.metadata.fileSize, 'pero cache tiene', blob.size);
-          // No bloquear, solo log
+  const handleOpenOffline = async (content) => {
+    try {
+      console.log('🔄 Intentando abrir archivo offline:', content._id);
+      
+      // Verificación del estado
+      const status = await downloadManager.verifyFileDownload(content._id);
+      console.log('📊 Estado del archivo:', status);
+      
+      if (!status.exists) {
+        alert('El archivo no está disponible offline. Intenta descargarlo nuevamente.');
+        return;
+      }
+      
+      // Verificar discrepancia de tamaño
+      if (status.metadata && status.cacheUrl) {
+        const cache = await caches.open('edu-files-v1');
+        const response = await cache.match(status.cacheUrl);
+        if (response) {
+          const blob = await response.blob();
+          if (blob.size < 1000 && status.metadata.fileSize > 1000) {
+            console.warn('⚠️ DISCREPANCIA: Metadata dice', status.metadata.fileSize, 'pero cache tiene', blob.size);
+            
+            // Mostrar alerta informativa
+            if (window.confirm(`El archivo "${content.title}" parece estar incompleto (${blob.size} bytes de ${status.metadata.fileSize} esperados). ¿Quieres re-descargarlo automáticamente?`)) {
+              console.log('🔄 Re-descargando por discrepancia...');
+              await handleDownload(content);
+              return;
+            }
+          }
         }
       }
-    }
-    
-    // USAR LA NUEVA FUNCIÓN CON REPARACIÓN
-    await downloadManager.openFileWithRepair(content._id);
-    
-  } catch (error) {
-    console.error('❌ Error abriendo archivo offline:', error);
-    
-    let errorMessage = `Error abriendo "${content.title}": ${error.message}`;
-    
-    if (error.message.includes('bloqueó')) {
-      errorMessage += '\n\nSolución: Permite ventanas emergentes para este sitio.';
-    } else if (error.message.includes('no encontrado') || error.message.includes('corrupto')) {
-      errorMessage += '\n\nSolución: El archivo puede estar corrupto. Se intentará re-descargar automáticamente.';
       
-      // Re-descargar automáticamente
-      setTimeout(() => {
-        console.log('🔄 Re-descargando archivo automáticamente...');
-        handleDownload(content);
-      }, 1000);
+      // USAR LA NUEVA FUNCIÓN CON REPARACIÓN MEJORADA
+      await downloadManager.openFileWithRepair(content._id);
+      
+    } catch (error) {
+      console.error('❌ Error abriendo archivo offline:', error);
+      
+      let errorMessage = `Error abriendo "${content.title}": ${error.message}`;
+      
+      if (error.message.includes('bloqueó')) {
+        errorMessage += '\n\nSolución: Permite ventanas emergentes para este sitio.';
+      } else if (error.message.includes('incompleto') || error.message.includes('discrepancia')) {
+        errorMessage += '\n\nEl archivo se descargó incompleto. Se intentará re-descargar automáticamente.';
+        
+        // Re-descargar automáticamente después de 1 segundo
+        setTimeout(() => {
+          console.log('🔄 Re-descargando archivo automáticamente por error...');
+          handleDownload(content);
+        }, 1000);
+      } else if (error.message.includes('no encontrado') || error.message.includes('corrupto')) {
+        errorMessage += '\n\nSe intentará re-descargar automáticamente.';
+        
+        // Re-descargar automáticamente
+        setTimeout(() => {
+          console.log('🔄 Re-descargando archivo automáticamente...');
+          handleDownload(content);
+        }, 1000);
+      }
+      
+      alert(errorMessage);
     }
-    
-    alert(errorMessage);
-  }
-};
+  };
 
   const getFileIcon = (fileType) => {
     const icons = {

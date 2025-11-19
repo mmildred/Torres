@@ -955,3 +955,95 @@
   font-weight: 600;
   z-index: 2;
 }
+
+/* ✅ Estilos para modo offline */
+.offline-banner {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.offline-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.offline-content span {
+  font-weight: bold;
+  color: #856404;
+}
+
+.offline-content p {
+  margin: 0;
+  flex: 1;
+  color: #856404;
+}
+
+.offline-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #6c757d;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.error-actions {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.troubleshooting {
+  text-align: left;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  max-width: 500px;
+}
+
+.troubleshooting h4 {
+  margin-bottom: 0.5rem;
+  color: #495057;
+}
+
+.troubleshooting ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.troubleshooting li {
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.troubleshooting code {
+  background: #e9ecef;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #007bff;
+  border: 1px solid #007bff;
+}
+
+.btn-outline:hover {
+  background: #007bff;
+  color: white;
+}
