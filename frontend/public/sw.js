@@ -1,9 +1,12 @@
-// public/sw.js - VERSIÓN MEJORADA
+// public/sw.js - VERSIÓN LIMPIA
 const STATIC_CACHE = 'static-v4';
 const FILES_CACHE = 'edu-files-v1';
 
+// Solo mostrar logs detallados en desarrollo (localhost)
+const IS_DEV = self.location.hostname === 'localhost';
+
 self.addEventListener('install', (event) => {
-  console.log('🛠️ Service Worker instalando...');
+  if (IS_DEV) console.log('🛠️ Service Worker instalando...');
   event.waitUntil(
     caches.open(STATIC_CACHE).then(cache => {
       return cache.addAll([
@@ -17,53 +20,37 @@ self.addEventListener('install', (event) => {
   );
 });
 
-self.addEventListener('activate', (event) => {
-  console.log('🔥 Service Worker activado');
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== STATIC_CACHE && cacheName !== FILES_CACHE) {
-            console.log('🗑️ Eliminando cache viejo:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
-  );
-});
-
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  console.log('🔍 Service Worker interceptando:', url.pathname);
+  // 🔥 ESTRATEGIA PARA RUTAS DE API
+  const isApiRoute =
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/admin/') ||
+    (url.pathname.startsWith('/courses/') && !url.pathname.includes('/uploads/'));
 
-  // 🔥 ESTRATEGIA MEJORADA PARA RUTAS DE API
-  if (url.pathname.startsWith('/api/') || 
-      url.pathname.startsWith('/auth/') ||
-      url.pathname.startsWith('/admin/') ||
-      url.pathname.startsWith('/courses/') && !url.pathname.includes('/uploads/')) {
-    
-    console.log('🌐 Manejando API route:', url.pathname);
-    
+  if (isApiRoute) {
     event.respondWith(
       fetch(request).catch(error => {
-        console.log('❌ Error de red para API, devolviendo error controlado:', url.pathname);
-        
-        // Para rutas de progreso, devolver un objeto vacío en lugar de error
+        // ❗ Solo logueamos errores si quieres, o comenta esto también:
+        // console.error('Error de red para API:', url.pathname, error);
+
+        // Fallback específico para progreso
         if (url.pathname.includes('/progress/me')) {
           return new Response(JSON.stringify({
+            enrolled: false,
             progress: 0,
-            completedContents: [],
-            lastAccess: null
+            completedContents: 0,
+            totalContents: 0
           }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
           });
         }
-        
-        // Para otras APIs, devolver error controlado
+
+        // Fallback genérico
         return new Response(JSON.stringify({
           error: 'Connection failed',
           message: 'No se puede conectar al servidor',
@@ -77,93 +64,66 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Manejar archivos offline (mantener igual)
+  // Resto igual:
   if (url.pathname.startsWith('/offline-files/')) {
-    console.log('📁 Sirviendo archivo offline:', url.pathname);
     event.respondWith(
-      caches.match(request).then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(request);
-      })
+      caches.match(request).then(response => response || fetch(request))
     );
     return;
   }
 
-  // Manejar uploads para offline (mantener igual)
   if (url.pathname.startsWith('/uploads/')) {
-    console.log('📤 Manejando upload:', url.pathname);
     event.respondWith(
-      caches.open(FILES_CACHE).then(cache => {
-        return cache.match(request).then(response => {
-          if (response) {
-            console.log('✅ Sirviendo upload desde cache:', url.pathname);
-            return response;
-          }
+      caches.open(FILES_CACHE).then(cache =>
+        cache.match(request).then(response => {
+          if (response) return response;
           return fetch(request).then(networkResponse => {
-            if (networkResponse.ok) {
-              cache.put(request, networkResponse.clone());
-              console.log('💾 Upload guardado en cache:', url.pathname);
-            }
+            if (networkResponse.ok) cache.put(request, networkResponse.clone());
             return networkResponse;
           });
-        });
-      })
+        })
+      )
     );
     return;
   }
 
-  // Para archivos de la API de cursos (descargas) - ESTRATEGIA MEJORADA
   if (url.pathname.startsWith('/api/courses/files/') && url.pathname.includes('/download')) {
-    console.log('📥 Manejando descarga:', url.pathname);
     event.respondWith(
-      caches.open(FILES_CACHE).then(cache => {
-        return cache.match(request).then(response => {
-          // Intentar con network primero para archivos frescos
+      caches.open(FILES_CACHE).then(cache =>
+        cache.match(request).then(response => {
           return fetch(request).then(networkResponse => {
-            if (networkResponse.ok) {
-              cache.put(request, networkResponse.clone());
-              console.log('💾 Descarga guardada en cache:', url.pathname);
-            }
+            if (networkResponse.ok) cache.put(request, networkResponse.clone());
             return networkResponse;
-          }).catch(error => {
-            console.log('❌ Error en descarga, usando cache si existe:', url.pathname);
-            // Fallback a cache si no hay conexión
-            if (response) {
-              console.log('📂 Usando cache para descarga (offline):', url.pathname);
-              return response;
-            }
-            // Si no hay cache, devolver error controlado
-            return new Response('Archivo no disponible offline', { 
+          }).catch(() => {
+            if (response) return response;
+            return new Response('Archivo no disponible offline', {
               status: 503,
               headers: { 'Content-Type': 'text/plain' }
             });
           });
-        });
-      })
+        })
+      )
     );
     return;
   }
 
-  // Estrategia network-first para recursos estáticos
-  console.log('🌐 Network-first para:', url.pathname);
   event.respondWith(
-    fetch(request).catch(() => {
-      return caches.match(request).then(response => {
-        return response || new Response('Contenido no disponible offline', {
+    fetch(request).catch(() =>
+      caches.match(request).then(response =>
+        response || new Response('Contenido no disponible offline', {
           status: 503,
           headers: { 'Content-Type': 'text/plain' }
-        });
-      });
-    })
+        })
+      )
+    )
   );
 });
 
-// Sincronización en background (mantener igual)
+
+// Sincronización en background (igual que antes)
 self.addEventListener('sync', (event) => {
   if (event.tag === 'background-sync') {
-    console.log('🔄 Sincronización en background');
+    if (IS_DEV) console.log('🔄 Sincronización en background');
     event.waitUntil(doBackgroundSync());
   }
 });

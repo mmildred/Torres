@@ -51,16 +51,17 @@ export default function CourseDetail() {
         setCourse(courseRes.data);
         
         // 2) Verificar progreso e inscripción
-        try {
+            try {
           const progressRes = await api.get(`/courses/${courseId}/progress/me`);
           if (!isMounted) return;
-          
+
           setProgress(progressRes.data);
           setEnrolled(progressRes.data.enrolled);
-          console.log('✅ Datos cargados correctamente');
+
+          console.log("Datos cargados correctamente");
         } catch (error) {
           if (!isMounted) return;
-          // Error 404 significa que no está inscrito - normal
+
           setEnrolled(false);
           setProgress({
             enrolled: false,
