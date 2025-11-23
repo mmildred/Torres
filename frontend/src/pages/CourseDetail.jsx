@@ -332,7 +332,7 @@ export default function CourseDetail() {
       {isInstructor && course.contents?.length > visibleContents.length && (
         <div className="instructor-notice">
           <div className="notice-content">
-            <h3>📝 Nota para instructores</h3>
+            <h3>📝 Nota para instructores</h3>s
             <p>
               Tienes <strong>{course.contents.length - visibleContents.length}</strong> contenido(s) en estado de borrador. 
               Los estudiantes no pueden ver estos contenidos hasta que los publiques.
