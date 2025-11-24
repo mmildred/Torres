@@ -6,8 +6,6 @@ import Course from './course.model.js';
 import Enrollment from './enrollment.model.js';
 import { auth } from '../../middleware/auth.js';
 import User from '../auth/user.model.js';
-import express from 'express';
-import File from './content.model.js';
 
 const r = Router();
 
@@ -71,6 +69,284 @@ r.get('/my-courses', auth(), async (req, res) => {
 
 // RUTA PRINCIPAL PARA OBTENER TODOS LOS CURSOS
 r.get('/', async (req, res) => {
+// =============================================================================
+// 🔥 RUTAS ESPECÍFICAS - ORDEN CRÍTICO: MÁS ESPECÍFICAS PRIMERO
+// =============================================================================
+
+// 1. RUTAS DE ARCHIVOS
+r.get('/files/available', auth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEnrollments = await Enrollment.find({ userId: userId });
+    const enrolledCourseIds = userEnrollments.map(e => e.courseId);
+    
+    const courses = await Course.find({
+      $or: [
+        { isPublished: true },
+        { _id: { $in: enrolledCourseIds } }
+      ]
+    });
+    
+    const allFiles = [];
+    courses.forEach(course => {
+      course.contents.forEach(content => {
+        if (content.filePath && content.isPublished) {
+          allFiles.push({
+            _id: content._id,
+            title: content.title,
+            fileType: content.type || 'document',
+            fileSize: content.fileSize || 0,
+            filePath: content.filePath,
+            fileName: content.fileName,
+            subject: course.category,
+            educationalLevel: course.level,
+            courseId: course._id,
+            courseTitle: course.title,
+            createdAt: content.createdAt
+          });
+        }
+      });
+    });
+
+    res.json(allFiles);
+  } catch (error) {
+    console.error('Error al obtener archivos:', error);
+    res.status(500).json({ message: 'Error al obtener archivos', error: error.message });
+  }
+});
+
+r.get('/files/my-downloads', auth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEnrollments = await Enrollment.find({ userId: userId });
+    const enrolledCourseIds = userEnrollments.map(e => e.courseId);
+    
+    const courses = await Course.find({ _id: { $in: enrolledCourseIds } });
+    
+    const downloadedFiles = [];
+    courses.forEach(course => {
+      course.contents.forEach(content => {
+        if (content.filePath) {
+          downloadedFiles.push({
+            fileId: content._id,
+            title: content.title,
+            fileType: content.type || 'document',
+            fileSize: content.fileSize || 0,
+            courseTitle: course.title,
+            downloadedAt: new Date()
+          });
+        }
+      });
+    });
+
+    res.json(downloadedFiles);
+  } catch (error) {
+    console.error('Error al obtener descargas:', error);
+    res.status(500).json({ message: 'Error al obtener descargas', error: error.message });
+  }
+});
+
+// RUTAS CON ID - DEBEN IR DESPUÉS DE LAS RUTAS ESPECIALES
+r.get('/:id', auth(), async (req, res) => {
+r.get('/files/:fileId/download', auth(), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user.id;
+
+    const courses = await Course.find({
+      'contents._id': fileId,
+      $or: [
+        { isPublished: true },
+        { 'enrollments.userId': userId }
+      ]
+    });
+
+    let targetContent = null;
+    for (const course of courses) {
+      const content = course.contents.find(c => c._id.toString() === fileId);
+      if (content && content.filePath) {
+        targetContent = content;
+        break;
+      }
+    }
+
+    if (!targetContent) {
+      return res.status(404).json({ message: 'Archivo no encontrado o sin permisos' });
+    }
+
+    const filePath = path.join(uploadDir, targetContent.filePath);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'Archivo físico no encontrado' });
+    }
+
+    console.log(`📥 Usuario ${userId} descargó: ${targetContent.title}`);
+    res.download(filePath, targetContent.fileName || targetContent.title);
+
+  } catch (error) {
+    console.error('Error al descargar archivo:', error);
+    res.status(500).json({ message: 'Error al descargar archivo', error: error.message });
+  }
+});
+
+// 2. MIS CURSOS
+r.get('/my-courses', auth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log(`🔍 Buscando cursos para usuario: ${userId}`);
+
+    const enrollments = await Enrollment.find({ userId: userId });
+    const courseIds = enrollments.map(enrollment => enrollment.courseId);
+    console.log(`📋 IDs de cursos inscritos: ${courseIds.length}`);
+    
+    const courses = await Course.find({ 
+      _id: { $in: courseIds },
+      isPublished: true 
+    });
+    
+    console.log(`🎯 Cursos encontrados: ${courses.length}`);
+    
+    const coursesWithProgress = await Promise.all(
+      courses.map(async (course) => {
+        const enrollment = enrollments.find(e => e.courseId.toString() === course._id.toString());
+        const progress = {
+          enrolled: true,
+          progress: course.contents?.length > 0 ? 
+            Math.round((enrollment.completedContentIds.length / course.contents.length) * 100) : 0,
+          completedContents: enrollment.completedContentIds.length,
+          totalContents: course.contents?.length || 0,
+          lastAccessAt: enrollment.lastAccessAt,
+          enrolledAt: enrollment.createdAt
+        };
+        
+        return {
+          ...course.toJSON(),
+          progress: progress,
+          isEnrolled: true
+        };
+      })
+    );
+    
+    console.log(`✅ Enviando ${coursesWithProgress.length} cursos al frontend`);
+    res.json(coursesWithProgress);
+  } catch (error) {
+    console.error('❌ Error obteniendo mis cursos:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor',
+      error: error.message 
+    });
+  }
+});
+
+// 3. ESTADÍSTICAS DE INSTRUCTOR
+r.get('/instructor/stats', auth('teacher'), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const myCourses = await Course.find({ 
+      'owner._id': userId,
+      isPublished: true 
+    });
+    
+    const courseIds = myCourses.map(course => course._id);
+    const enrollments = await Enrollment.find({ 
+      courseId: { $in: courseIds } 
+    });
+    
+    const studentsByCourse = {};
+    enrollments.forEach(enrollment => {
+      const courseId = enrollment.courseId.toString();
+      if (!studentsByCourse[courseId]) {
+        studentsByCourse[courseId] = new Set();
+      }
+      studentsByCourse[courseId].add(enrollment.userId.toString());
+    });
+    
+    const coursesWithStats = myCourses.map(course => {
+      const courseId = course._id.toString();
+      const studentCount = studentsByCourse[courseId] ? studentsByCourse[courseId].size : 0;
+      
+      return {
+        ...course.toJSON(),
+        studentCount: studentCount
+      };
+    });
+    
+    const totalStudents = enrollments.reduce((unique, enrollment) => {
+      return unique.add(enrollment.userId.toString());
+    }, new Set()).size;
+
+    res.json({
+      totalCourses: myCourses.length,
+      totalStudents: totalStudents,
+      totalEnrollments: enrollments.length,
+      courses: coursesWithStats
+    });
+    
+  } catch (error) {
+    console.error('Error obteniendo estadísticas de instructor:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor',
+      error: error.message 
+    });
+  }
+});
+
+// 4. CREAR CURSO (POST antes de las rutas GET con parámetros)
+r.post('/', auth('teacher'), async (req, res) => {
+  try {
+    console.log("📥 RECIBIENDO PETICIÓN PARA CREAR CURSO");
+    const { title, description, category, level, duration, thumbnail } = req.body;
+    
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: 'Título requerido' });
+    }
+
+    const creator = await User.findById(req.user.id);
+    if (!creator) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const courseData = {
+      title: title.trim(),
+      description: description?.trim() || "",
+      category: category || "General",
+      level: level || "beginner",
+      duration: duration || "Auto-guiado",
+      thumbnail: thumbnail || "",
+      owner: {
+        _id: creator._id,
+        name: creator.name,
+        role: creator.role
+      },
+      instructors: [{
+        _id: creator._id,
+        name: creator.name,
+        role: creator.role
+      }],
+      contents: [],
+      isPublished: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const course = await Course.create(courseData);
+    res.status(201).json(course.toJSON());
+    
+  } catch (error) {
+    console.error("❌ ERROR creando curso:", error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ message: 'Error de validación', errors });
+    }
+    
+    res.status(500).json({ message: "Error interno del servidor", error: error.message });
+  }
+});
+
+// 5. LISTADO GENERAL DE CURSOS
+r.get('/', async (req, res) => {
   try {
     let filter = {};
     
@@ -94,16 +370,7 @@ r.get('/', async (req, res) => {
       filter = { isPublished: true };
     }
 
-    console.log("🔍 Filtro aplicado para usuario:", req.user?.id);
-    console.log("📋 Filtro:", JSON.stringify(filter));
-    
     const list = await Course.find(filter).sort({ createdAt: -1 });
-    console.log("📊 Cursos encontrados:", list.length);
-    
-    list.forEach(course => {
-      console.log(`📖 Curso: "${course.title}" - Publicado: ${course.isPublished} - Owner: ${course.owner?._id}`);
-    });
-
     res.json(list.map(x => x.toJSON()));
   } catch (error) {
     console.error('Error fetching courses:', error);
@@ -111,108 +378,180 @@ r.get('/', async (req, res) => {
   }
 });
 
-// RUTAS CON ID - DEBEN IR DESPUÉS DE LAS RUTAS ESPECIALES
-r.get('/:id', auth(), async (req, res) => {
+// =============================================================================
+// 🔥 RUTAS CON :courseId - ORDEN ESPECÍFICO
+// =============================================================================
+
+// 📊 ANALYTICS - DEBE IR PRIMERO
+r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
-    
+    const { courseId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`📊 Analytics solicitado - Curso: ${courseId}, Usuario: ${userId}`);
+
+    const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    const isOwner = course.owner._id.toString() === req.user.id;
-    const isInstructor = course.instructors.some(instructor => 
-      instructor._id.toString() === req.user.id
+    const isOwner = course.owner && course.owner._id.toString() === userId;
+    const isInstructor = course.instructors && course.instructors.some(instructor => 
+      instructor._id && instructor._id.toString() === userId
     );
-    const isAdmin = req.user.role === 'admin';
     
-    if (!course.isPublished && !isOwner && !isInstructor && !isAdmin) {
-      return res.status(403).json({ message: 'No tienes acceso a este curso' });
+    if (!isOwner && !isInstructor && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'No tienes permisos para ver estas estadísticas' });
     }
 
-    res.json(course.toJSON());
-  } catch (error) {
-    console.error('Error obteniendo curso:', error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-});
-
-r.post('/', auth('teacher'), async (req, res) => {
-  try {
-    console.log("📥 RECIBIENDO PETICIÓN PARA CREAR CURSO");
-    console.log("📋 Datos recibidos:", req.body);
-    console.log("👤 Usuario autenticado:", req.user);
-
-    const { 
-      title, 
-      description, 
-      category, 
-      level, 
-      duration, 
-      thumbnail 
-    } = req.body;
+    const enrollments = await Enrollment.find({ courseId: courseId });
+    const userIds = enrollments.map(e => e.userId);
+    const users = await User.find({ _id: { $in: userIds } });
     
-    if (!title || !title.trim()) {
-      console.log("❌ Error: Título requerido");
-      return res.status(400).json({ message: 'Título requerido' });
-    }
+    const userMap = {};
+    users.forEach(user => {
+      userMap[user._id.toString()] = user;
+    });
 
-    const creator = await User.findById(req.user.id);
-    if (!creator) {
-      console.log("❌ Error: Usuario no encontrado");
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
+    const studentsProgress = enrollments.map((enrollment) => {
+      const user = userMap[enrollment.userId.toString()];
+      const completedContents = enrollment.completedContentIds?.length || 0;
+      const totalContents = course.contents?.length || 1;
+      const progress = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
+      
+      let status = 'beginner';
+      if (progress === 0) status = 'not-started';
+      else if (progress >= 80) status = 'advanced';
+      else if (progress >= 40) status = 'intermediate';
 
-    console.log("✅ Usuario creador encontrado:", creator.name);
+      return {
+        studentId: enrollment.userId,
+        name: user ? user.name : 'Estudiante',
+        email: user ? user.email : 'No disponible',
+        progress: progress,
+        completedContents: completedContents,
+        totalContents: totalContents,
+        lastActivity: enrollment.lastAccessAt || enrollment.updatedAt,
+        enrolledAt: enrollment.createdAt,
+        status: status
+      };
+    });
 
-    const courseData = {
-      title: title.trim(),
-      description: description?.trim() || "",
-      category: category || "General",
-      level: level || "beginner",
-      duration: duration || "Auto-guiado",
-      thumbnail: thumbnail || "",
-      owner: {
-        _id: creator._id,
-        name: creator.name,
-        role: creator.role
-      },
-      instructors: [{
-        _id: creator._id,
-        name: creator.name,
-        role: creator.role
-      }],
-      contents: [],
-      isPublished: true, 
-      createdAt: new Date(),
-      updatedAt: new Date()
+    const totalStudents = studentsProgress.length;
+    const avgProgress = totalStudents > 0 
+      ? Math.round(studentsProgress.reduce((sum, student) => sum + student.progress, 0) / totalStudents)
+      : 0;
+    
+    const completedStudents = studentsProgress.filter(s => s.progress === 100).length;
+    const activeStudents = studentsProgress.filter(s => s.progress > 0 && s.progress < 100).length;
+    const notStartedStudents = studentsProgress.filter(s => s.progress === 0).length;
+    const completionRate = totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+
+    const response = {
+      courseId: course._id,
+      courseTitle: course.title,
+      courseDescription: course.description || '',
+      totalContents: course.contents?.length || 0,
+      totalStudents: totalStudents,
+      averageProgress: avgProgress,
+      completedStudents: completedStudents,
+      activeStudents: activeStudents,
+      notStartedStudents: notStartedStudents,
+      completionRate: completionRate,
+      students: studentsProgress.sort((a, b) => b.progress - a.progress)
     };
 
-    console.log("💾 Guardando curso en base de datos...");
-    const course = await Course.create(courseData);
-    console.log("🎉 Curso guardado exitosamente:", course._id);
-    
-    res.status(201).json(course.toJSON());
-    
+    console.log('✅ Analytics generados exitosamente');
+    res.json(response);
+
   } catch (error) {
-    console.error("❌ ERROR CRÍTICO creando curso:", error);
-    
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      console.log("❌ Errores de validación:", errors);
-      return res.status(400).json({ 
-        message: 'Error de validación', 
-        errors 
-      });
-    }
-    
+    console.error('❌ ERROR en analytics:', error);
     res.status(500).json({ 
-      message: "Error interno del servidor",
-      error: error.message 
+      message: 'Error interno del servidor',
+      error: error.message
     });
   }
 });
 
+// ENROLLMENTS
+r.get('/:courseId/enrollments', auth('teacher'), async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Curso no encontrado' });
+    }
+
+    const isOwner = course.owner._id.toString() === userId;
+    const isInstructor = course.instructors.some(instructor => 
+      instructor._id.toString() === userId
+    );
+    
+    if (!isOwner && !isInstructor && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    const enrollments = await Enrollment.find({ courseId: courseId });
+    const userIds = enrollments.map(e => e.userId);
+    const users = await User.find({ _id: { $in: userIds } });
+    
+    const userMap = {};
+    users.forEach(user => {
+      userMap[user._id.toString()] = user;
+    });
+
+    const enrichedEnrollments = enrollments.map(enrollment => {
+      const user = userMap[enrollment.userId.toString()];
+      const totalContents = course.contents?.length || 1;
+      const completedContents = enrollment.completedContentIds?.length || 0;
+      const progress = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
+
+      return {
+        _id: enrollment._id,
+        student: {
+          _id: user?._id,
+          name: user?.name || 'Estudiante',
+          email: user?.email || 'No disponible'
+        },
+        progress: progress,
+        completedContents: completedContents,
+        lastAccess: enrollment.lastAccessAt || enrollment.updatedAt,
+        createdAt: enrollment.createdAt,
+        updatedAt: enrollment.updatedAt
+      };
+    });
+
+    res.json(enrichedEnrollments);
+  } catch (error) {
+    console.error('Error obteniendo enrollments:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// MANIFEST
+r.get('/:id/manifest', async (req, res) => {
+  try {
+    const c = await Course.findById(req.params.id);
+    if (!c) return res.status(404).json({ message: 'Not found' });
+    
+    res.json({ 
+      files: c.contents
+        .filter(content => content.filePath)
+        .map(x => ({ 
+          name: x.fileName || x.title, 
+          path: x.filePath, 
+          size: x.fileSize ?? null 
+        })) 
+    });
+  } catch (error) {
+    console.error('Error en manifest:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// SUBIR ARCHIVOS
 r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -239,21 +578,15 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
 
     const getFileType = (filename) => {
       const ext = path.extname(filename).toLowerCase();
-      if (['.pdf', '.doc', '.docx', '.txt', '.ppt', '.pptx'].includes(ext)) {
-        return 'document';
-      } else if (['.mp4', '.avi', '.mov', '.wmv', '.flv'].includes(ext)) {
-        return 'video';
-      } else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp'].includes(ext)) {
-        return 'image';
-      }
+      if (['.pdf', '.doc', '.docx', '.txt', '.ppt', '.pptx'].includes(ext)) return 'document';
+      if (['.mp4', '.avi', '.mov', '.wmv', '.flv'].includes(ext)) return 'video';
+      if (['.jpg', '.jpeg', '.png', '.gif', '.bmp'].includes(ext)) return 'image';
       return 'document';
     };
 
-    const fileType = getFileType(file.originalname);
-
     const newContent = {
       title: title || file.originalname,
-      type: fileType,
+      type: getFileType(file.originalname),
       description: description || '',
       instructions: instructions || '',
       duration: duration || 0,
@@ -300,6 +633,8 @@ r.get('/uploads/:filename', async (req, res) => {
 });
 
 // RUTA DE INSCRIPCIÓN 
+
+// INSCRIPCIÓN
 r.post('/:courseId/enroll', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -314,18 +649,14 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
       return res.status(403).json({ message: 'No puedes inscribirte en un curso no publicado' });
     }
 
-    const existingEnrollment = await Enrollment.findOne({
-      courseId: courseId,
-      userId: userId
-    });
-
+    const existingEnrollment = await Enrollment.findOne({ courseId, userId });
     if (existingEnrollment) {
       return res.status(400).json({ message: 'Ya estás inscrito en este curso' });
     }
 
     const enrollment = await Enrollment.create({
-      courseId: courseId,
-      userId: userId,
+      courseId,
+      userId,
       completedContentIds: [],
       lastAccessAt: new Date()
     });
@@ -342,26 +673,20 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
 
   } catch (error) {
     console.error('Error en inscripción:', error);
-    
     if (error.code === 11000) {
       return res.status(400).json({ message: 'Ya estás inscrito en este curso' });
     }
-    
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
-// RUTA PARA VERIFICAR INSCRIPCIÓN 
+// VERIFICAR INSCRIPCIÓN
 r.get('/:courseId/enrollment/check', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.user.id;
 
-    const enrollment = await Enrollment.findOne({
-      courseId: courseId,
-      userId: userId
-    });
-
+    const enrollment = await Enrollment.findOne({ courseId, userId });
     res.json({ 
       isEnrolled: !!enrollment,
       enrollment: enrollment || null
@@ -372,65 +697,7 @@ r.get('/:courseId/enrollment/check', auth(), async (req, res) => {
   }
 });
 
-// PUBLICAR CURSO
-r.patch('/:courseId/publish', auth('teacher'), async (req, res) => {
-  try {
-    const { courseId } = req.params;
-
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: 'Curso no encontrado' });
-    }
-
-    const isOwner = course.owner._id.toString() === req.user.id;
-    const isInstructor = course.instructors.some(instructor => 
-      instructor._id.toString() === req.user.id
-    );
-    
-    if (!isOwner && !isInstructor && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'No tienes permisos para publicar este curso' });
-    }
-
-    course.isPublished = true;
-    await course.save();
-
-    res.json(course.toJSON());
-
-  } catch (error) {
-    console.error('Error publicando curso:', error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-});
-
-r.patch('/:courseId/unpublish', auth('teacher'), async (req, res) => {
-  try {
-    const { courseId } = req.params;
-
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: 'Curso no encontrado' });
-    }
-
-    const isOwner = course.owner._id.toString() === req.user.id;
-    const isInstructor = course.instructors.some(instructor => 
-      instructor._id.toString() === req.user.id
-    );
-    
-    if (!isOwner && !isInstructor && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'No tienes permisos para despublicar este curso' });
-    }
-
-    course.isPublished = false;
-    await course.save();
-
-    res.json(course.toJSON());
-
-  } catch (error) {
-    console.error('Error despublicando curso:', error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-});
-
+// PROGRESO DEL USUARIO
 r.get('/:courseId/progress/me', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -441,10 +708,7 @@ r.get('/:courseId/progress/me', auth(), async (req, res) => {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    const enrollment = await Enrollment.findOne({
-      courseId: courseId,
-      userId: userId
-    });
+    const enrollment = await Enrollment.findOne({ courseId, userId });
 
     if (!enrollment) {
       return res.status(200).json({
@@ -475,28 +739,7 @@ r.get('/:courseId/progress/me', auth(), async (req, res) => {
   }
 });
 
-// RUTA PARA MANIFEST
-r.get('/:id/manifest', async (req, res) => {
-  try {
-    const c = await Course.findById(req.params.id);
-    if (!c) return res.status(404).json({ message: 'Not found' });
-    
-    res.json({ 
-      files: c.contents
-        .filter(content => content.filePath)
-        .map(x => ({ 
-          name: x.fileName || x.title, 
-          path: x.filePath, 
-          size: x.fileSize ?? null 
-        })) 
-    });
-  } catch (error) {
-    console.error('Error en manifest:', error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-});
-
-// CREAR CONTENIDO SIN ARCHIVO
+// CREAR CONTENIDO
 r.post('/:courseId/contents', auth('teacher'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -579,6 +822,12 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
     course.contents[contentIndex].updatedAt = new Date();
     
     // ✅ CORRECCIÓN: Guardar el curso completo
+
+    course.contents[contentIndex] = {
+      ...course.contents[contentIndex].toObject(),
+      ...updateData
+    };
+
     await course.save();
     
     console.log("✅ Contenido actualizado exitosamente");
@@ -602,10 +851,12 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
       });
     }
     
+    console.error('Error actualizando contenido:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
+// ELIMINAR CONTENIDO
 r.delete('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -639,6 +890,7 @@ r.delete('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => 
   }
 });
 
+// TOGGLE PUBLISH CONTENIDO
 r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -666,7 +918,6 @@ r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async 
     }
 
     course.contents[contentIndex].isPublished = !course.contents[contentIndex].isPublished;
-
     await course.save();
     
     const updatedCourse = await Course.findById(courseId);
@@ -678,15 +929,13 @@ r.patch('/:courseId/contents/:contentId/toggle-publish', auth('teacher'), async 
   }
 });
 
+// COMPLETAR CONTENIDO
 r.post('/:courseId/contents/:contentId/complete', auth(), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
     const userId = req.user.id;
 
-    const enrollment = await Enrollment.findOne({
-      courseId: courseId,
-      userId: userId
-    });
+    const enrollment = await Enrollment.findOne({ courseId, userId });
 
     if (!enrollment) {
       return res.status(404).json({ message: 'No estás inscrito en este curso' });
@@ -716,15 +965,13 @@ r.post('/:courseId/contents/:contentId/complete', auth(), async (req, res) => {
   }
 });
 
+// DESCOMPLETAR CONTENIDO
 r.post('/:courseId/contents/:contentId/uncomplete', auth(), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
     const userId = req.user.id;
 
-    const enrollment = await Enrollment.findOne({
-      courseId: courseId,
-      userId: userId
-    });
+    const enrollment = await Enrollment.findOne({ courseId, userId });
 
     if (!enrollment) {
       return res.status(404).json({ message: 'No estás inscrito en este curso' });
@@ -754,6 +1001,7 @@ r.post('/:courseId/contents/:contentId/uncomplete', auth(), async (req, res) => 
   }
 });
 
+// ENTREGAR CONTENIDO
 r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), async (req, res) => {
   try {
     const { courseId, contentId } = req.params;
@@ -765,10 +1013,7 @@ r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), a
       return res.status(400).json({ message: 'Archivo requerido para entrega' });
     }
 
-    const enrollment = await Enrollment.findOne({
-      courseId: courseId,
-      userId: userId
-    });
+    const enrollment = await Enrollment.findOne({ courseId, userId });
 
     if (!enrollment) {
       return res.status(404).json({ message: 'No estás inscrito en este curso' });
@@ -807,15 +1052,13 @@ r.post('/:courseId/contents/:contentId/submit', auth(), upload.single('file'), a
   }
 });
 
+// OBTENER ENTREGAS
 r.get('/:courseId/submissions/me', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.user.id;
 
-    const enrollment = await Enrollment.findOne({
-      courseId: courseId,
-      userId: userId
-    });
+    const enrollment = await Enrollment.findOne({ courseId, userId });
 
     if (!enrollment) {
       return res.status(404).json({ message: 'No estás inscrito en este curso' });
@@ -831,48 +1074,63 @@ r.get('/:courseId/submissions/me', auth(), async (req, res) => {
   }
 });
 
-r.get('/files/available', auth(), async (req, res) => {
+// PUBLICAR CURSO
+r.patch('/:courseId/publish', auth('teacher'), async (req, res) => {
   try {
-    const userId = req.user.id;
-    
-    // Buscar cursos donde el usuario está inscrito
-    const userEnrollments = await Enrollment.find({ userId: userId });
-    const enrolledCourseIds = userEnrollments.map(e => e.courseId);
-    
-    // Buscar cursos públicos o donde el usuario está inscrito
-    const courses = await Course.find({
-      $or: [
-        { isPublished: true },
-        { _id: { $in: enrolledCourseIds } }
-      ]
-    });
-    
-    // Extraer todos los archivos de contenido
-    const allFiles = [];
-    courses.forEach(course => {
-      course.contents.forEach(content => {
-        if (content.filePath && content.isPublished) {
-          allFiles.push({
-            _id: content._id,
-            title: content.title,
-            fileType: content.type || 'document',
-            fileSize: content.fileSize || 0,
-            filePath: content.filePath,
-            fileName: content.fileName,
-            subject: course.category,
-            educationalLevel: course.level,
-            courseId: course._id,
-            courseTitle: course.title,
-            createdAt: content.createdAt
-          });
-        }
-      });
-    });
+    const { courseId } = req.params;
 
-    res.json(allFiles);
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Curso no encontrado' });
+    }
+
+    const isOwner = course.owner._id.toString() === req.user.id;
+    const isInstructor = course.instructors.some(instructor => 
+      instructor._id.toString() === req.user.id
+    );
+    
+    if (!isOwner && !isInstructor && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'No tienes permisos para publicar este curso' });
+    }
+
+    course.isPublished = true;
+    await course.save();
+
+    res.json(course.toJSON());
+
   } catch (error) {
-    console.error('Error al obtener archivos:', error);
-    res.status(500).json({ message: 'Error al obtener archivos', error: error.message });
+    console.error('Error publicando curso:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// DESPUBLICAR CURSO
+r.patch('/:courseId/unpublish', auth('teacher'), async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Curso no encontrado' });
+    }
+
+    const isOwner = course.owner._id.toString() === req.user.id;
+    const isInstructor = course.instructors.some(instructor => 
+      instructor._id.toString() === req.user.id
+    );
+    
+    if (!isOwner && !isInstructor && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'No tienes permisos para despublicar este curso' });
+    }
+
+    course.isPublished = false;
+    await course.save();
+
+    res.json(course.toJSON());
+
+  } catch (error) {
+    console.error('Error despublicando curso:', error);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
@@ -892,6 +1150,8 @@ r.get('/files/:fileId/download', (req, res, next) => {
   
   next();
 }, auth(), async (req, res) => {
+// OBTENER CURSO INDIVIDUAL - DEBE IR AL FINAL
+r.get('/:id', auth(), async (req, res) => {
   try {
     const { fileId } = req.params;
     const userId = req.user.id;
@@ -950,6 +1210,17 @@ r.get('/files/:fileId/download', (req, res, next) => {
     const filePath = path.join(uploadDir, targetContent.filePath);
     
     console.log("🔍 Buscando archivo en:", filePath);
+    const course = await Course.findById(req.params.id);
+    
+    if (!course) {
+      return res.status(404).json({ message: 'Curso no encontrado' });
+    }
+
+    const isOwner = course.owner._id.toString() === req.user.id;
+    const isInstructor = course.instructors.some(instructor => 
+      instructor._id.toString() === req.user.id
+    );
+    const isAdmin = req.user.role === 'admin';
     
     if (!fs.existsSync(filePath)) {
       console.log("❌ Archivo físico no encontrado:", filePath);
@@ -1000,6 +1271,11 @@ r.get('/files/:fileId/download', (req, res, next) => {
       console.log('✅ Archivo enviado exitosamente');
     });
 
+    if (!course.isPublished && !isOwner && !isInstructor && !isAdmin) {
+      return res.status(403).json({ message: 'No tienes acceso a este curso' });
+    }
+
+    res.json(course.toJSON());
   } catch (error) {
     console.error('❌ Error al descargar archivo:', error);
     if (!res.headersSent) {
@@ -1008,42 +1284,25 @@ r.get('/files/:fileId/download', (req, res, next) => {
         error: error.message 
       });
     }
+    console.error('Error obteniendo curso:', error);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
-// Obtener archivos ya descargados por el usuario
-r.get('/files/my-downloads', auth(), async (req, res) => {
+// SERVIR ARCHIVOS ESTÁTICOS
+r.get('/uploads/:filename', async (req, res) => {
   try {
-    // Esta sería una implementación básica - puedes expandirla con tracking en BD
-    const userId = req.user.id;
+    const { filename } = req.params;
+    const filePath = path.join(uploadDir, filename);
     
-    const userEnrollments = await Enrollment.find({ userId: userId });
-    const enrolledCourseIds = userEnrollments.map(e => e.courseId);
-    
-    const courses = await Course.find({
-      _id: { $in: enrolledCourseIds }
-    });
-    
-    const downloadedFiles = [];
-    courses.forEach(course => {
-      course.contents.forEach(content => {
-        if (content.filePath) {
-          downloadedFiles.push({
-            fileId: content._id,
-            title: content.title,
-            fileType: content.type || 'document',
-            fileSize: content.fileSize || 0,
-            courseTitle: course.title,
-            downloadedAt: new Date() // Podrías guardar esto en BD
-          });
-        }
-      });
-    });
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'Archivo no encontrado' });
+    }
 
-    res.json(downloadedFiles);
+    res.sendFile(filePath);
   } catch (error) {
-    console.error('Error al obtener descargas:', error);
-    res.status(500).json({ message: 'Error al obtener descargas', error: error.message });
+    console.error('Error sirviendo archivo:', error);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 });
 

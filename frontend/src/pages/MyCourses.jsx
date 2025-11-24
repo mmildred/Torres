@@ -6,10 +6,12 @@ import "./MyCourses.css";
 
 export default function MyCourses() {
   const [courses, setCourses] = useState([]);
+  const [instructorStats, setInstructorStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
   const navigate = useNavigate();
   const user = getUser();
+
+  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -17,73 +19,74 @@ export default function MyCourses() {
       return;
     }
 
-    const loadMyCourses = async () => {
-      try {
-        setLoading(true);
-
-        const myCoursesRes = await api.get("/courses/my-courses");
-        setCourses(myCoursesRes.data);
-        
-      } catch (error) {
-        console.error("Error cargando mis cursos:", error);
-       
-        if (error.response?.status === 404) {
-          try {
-            console.log("Ruta /my-courses no existe, usando fallback...");
-            const allCoursesRes = await api.get("/courses");
-            const allCourses = allCoursesRes.data;
-            
-            const coursesWithProgress = await Promise.all(
-              allCourses.map(async (course) => {
-                try {
-                  const progressRes = await api.get(`/courses/${course._id}/progress/me`);
-                  if (progressRes.data.enrolled) {
-                    return {
-                      ...course,
-                      progress: progressRes.data,
-                      isEnrolled: true
-                    };
-                  }
-                  return null;
-                } catch (error) {
-                  return null; 
-                }
-              })
-            );
-            
-            const enrolledCourses = coursesWithProgress.filter(course => course !== null);
-            setCourses(enrolledCourses);
-          } catch (fallbackError) {
-            console.error("Error en fallback:", fallbackError);
-          }
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMyCourses();
+    loadCourses();
   }, [navigate]);
 
-  const getFilteredCourses = () => {
-    switch (filter) {
-      case "in-progress":
-        return courses.filter(course => 
-          course.progress?.progress > 0 && course.progress?.progress < 100
-        );
-      case "completed":
-        return courses.filter(course => course.progress?.progress === 100);
-      default:
-        return courses;
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+
+      if (isTeacher) {
+        // Solo cargar estadísticas de profesor
+        console.log("👨‍🏫 Cargando estadísticas de instructor...");
+        const statsRes = await api.get("/courses/instructor/stats");
+        setInstructorStats(statsRes.data);
+        setCourses(statsRes.data.courses || []);
+      } else {
+        // Para estudiantes, cargar cursos inscritos
+        console.log("🎓 Cargando cursos como estudiante...");
+        const myCoursesRes = await api.get("/courses/my-courses");
+        setCourses(myCoursesRes.data);
+      }
+      
+    } catch (error) {
+      console.error("Error cargando cursos:", error);
+      
+      // Fallback para estudiantes
+      if (!isTeacher) {
+        await loadCoursesWithFallback();
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleContinueLearning = (courseId) => {
-    navigate(`/courses/${courseId}/learn`);
+  const loadCoursesWithFallback = async () => {
+    try {
+      const allCoursesRes = await api.get("/courses");
+      const allCourses = allCoursesRes.data;
+      
+      const coursesWithProgress = await Promise.all(
+        allCourses.map(async (course) => {
+          try {
+            const progressRes = await api.get(`/courses/${course._id}/progress/me`);
+            if (progressRes.data.enrolled) {
+              return {
+                ...course,
+                progress: progressRes.data,
+                isEnrolled: true
+              };
+            }
+            return null;
+          } catch (error) {
+            return null;
+          }
+        })
+      );
+      
+      const enrolledCourses = coursesWithProgress.filter(course => course !== null);
+      setCourses(enrolledCourses);
+    } catch (fallbackError) {
+      console.error("Error en fallback:", fallbackError);
+    }
   };
 
   const handleViewCourse = (courseId) => {
     navigate(`/courses/${courseId}`);
+  };
+
+  const handleManageCourse = (courseId) => {
+    navigate(`/courses/${courseId}/manage`);
   };
 
   const handleImageError = (e) => {
@@ -94,81 +97,106 @@ export default function MyCourses() {
     return (
       <div className="my-courses-loading">
         <div className="loading-spinner"></div>
-        <p>Cargando tus cursos...</p>
+        <p>
+          {isTeacher ? "Cargando tus cursos como instructor..." : "Cargando tus cursos..."}
+        </p>
       </div>
     );
   }
 
-  const filteredCourses = getFilteredCourses();
-
   return (
     <div className="my-courses">
       <div className="my-courses-header">
-        <h1>Mis Cursos</h1>
-        <p>Gestiona y continúa tu aprendizaje</p>
+        <h1>
+          {isTeacher ? "Mis Cursos como Instructor" : "Mis Cursos"}
+        </h1>
+        <p>
+          {isTeacher 
+            ? "Gestiona tus cursos y revisa el progreso de tus estudiantes" 
+            : "Continúa tu aprendizaje y revisa tu progreso"
+          }
+        </p>
         
+        {/* Estadísticas */}
         <div className="courses-stats">
-          <div className="stat-card">
-            <span className="stat-number">{courses.length}</span>
-            <span className="stat-label">Total</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number">
-              {courses.filter(c => c.progress?.progress > 0 && c.progress?.progress < 100).length}
-            </span>
-            <span className="stat-label">En Progreso</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number">
-              {courses.filter(c => c.progress?.progress === 100).length}
-            </span>
-            <span className="stat-label">Completados</span>
-          </div>
-        </div>
-
-        <div className="filter-tabs">
-          <button 
-            className={`filter-tab ${filter === "all" ? "active" : ""}`}
-            onClick={() => setFilter("all")}
-          >
-            Todos ({courses.length})
-          </button>
-          <button 
-            className={`filter-tab ${filter === "in-progress" ? "active" : ""}`}
-            onClick={() => setFilter("in-progress")}
-          >
-            En Progreso ({courses.filter(c => c.progress?.progress > 0 && c.progress?.progress < 100).length})
-          </button>
-          <button 
-            className={`filter-tab ${filter === "completed" ? "active" : ""}`}
-            onClick={() => setFilter("completed")}
-          >
-            Completados ({courses.filter(c => c.progress?.progress === 100).length})
-          </button>
+          {isTeacher && instructorStats ? (
+            // Estadísticas para Profesor
+            <>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">{instructorStats.totalCourses}</span>
+                <span className="stat-label">Cursos Creados</span>
+              </div>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">{instructorStats.totalStudents}</span>
+                <span className="stat-label">Estudiantes Únicos</span>
+              </div>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">{instructorStats.totalEnrollments}</span>
+                <span className="stat-label">Total Inscripciones</span>
+              </div>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">
+                  {instructorStats.courses.reduce((acc, course) => acc + (course.studentCount || 0), 0)}
+                </span>
+                <span className="stat-label">Estudiantes Activos</span>
+              </div>
+            </>
+          ) : (
+            // Estadísticas para Estudiante
+            <>
+              <div className="stat-card">
+                <span className="stat-number">{courses.length}</span>
+                <span className="stat-label">Total Cursos</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-number">
+                  {courses.filter(c => c.progress?.progress > 0 && c.progress?.progress < 100).length}
+                </span>
+                <span className="stat-label">En Progreso</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-number">
+                  {courses.filter(c => c.progress?.progress === 100).length}
+                </span>
+                <span className="stat-label">Completados</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-number">
+                  {Math.round(courses.reduce((acc, course) => acc + (course.progress?.progress || 0), 0) / (courses.length || 1))}%
+                </span>
+                <span className="stat-label">Progreso Promedio</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       <div className="my-courses-content">
-        {filteredCourses.length === 0 ? (
+        {courses.length === 0 ? (
           <div className="empty-courses">
-            <div className="empty-icon">📚</div>
+            <div className="empty-icon">
+              {isTeacher ? "👨‍🏫" : "📚"}
+            </div>
             <h3>
-              {filter === "all" 
-                ? "No estás inscrito en ningún curso" 
-                : filter === "in-progress" 
-                ? "No tienes cursos en progreso"
-                : "No tienes cursos completados"
+              {isTeacher 
+                ? "Aún no has creado cursos" 
+                : "No estás inscrito en ningún curso"
               }
             </h3>
             <p>
-              {filter === "all" 
-                ? "Explora nuestro catálogo y encuentra cursos que te interesen"
-                : filter === "in-progress"
-                ? "Comienza a aprender en alguno de tus cursos inscritos"
-                : "¡Continúa aprendiendo para completar tus cursos!"
+              {isTeacher 
+                ? "Crea tu primer curso y comienza a compartir tu conocimiento con estudiantes"
+                : "Explora nuestro catálogo y encuentra cursos que te interesen"
               }
             </p>
-            {filter === "all" && (
+            {isTeacher ? (
+              <button 
+                className="create-course-btn"
+                onClick={() => navigate("/instructor/courses/create")}
+              >
+                Crear Mi Primer Curso
+              </button>
+            ) : (
               <button 
                 className="browse-courses-btn"
                 onClick={() => navigate("/courses")}
@@ -179,7 +207,7 @@ export default function MyCourses() {
           </div>
         ) : (
           <div className="courses-grid">
-            {filteredCourses.map((course) => (
+            {courses.map((course) => (
               <div key={course._id} className="course-card">
                 <div className="course-image">
                   <img
@@ -191,7 +219,16 @@ export default function MyCourses() {
                   <div className="course-category">
                     {course.category || "General"}
                   </div>
-                  {course.progress?.progress === 100 && (
+                  
+                  {/* Badges para profesor */}
+                  {isTeacher && course.studentCount > 0 && (
+                    <div className="students-badge">
+                      👥 {course.studentCount} estudiantes
+                    </div>
+                  )}
+                  
+                  {/* Badge para estudiante */}
+                  {!isTeacher && course.progress?.progress === 100 && (
                     <div className="completed-badge">
                       ✅ Completado
                     </div>
@@ -213,48 +250,92 @@ export default function MyCourses() {
                          course.level === 'intermediate' ? 'Intermedio' : 'Avanzado'}
                       </span>
                     </div>
-                  </div>
-
-                  <div className="progress-section">
-                    <div className="progress-header">
-                      <span className="progress-label">Tu progreso</span>
-                      <span className="progress-percent">{course.progress?.progress || 0}%</span>
-                    </div>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${course.progress?.progress || 0}%` }}
-                      ></div>
-                    </div>
-                    <div className="progress-stats">
-                      {course.progress?.completedContents || 0} de {course.progress?.totalContents || 0} lecciones
-                    </div>
-                  </div>
-
-                  <div className="course-actions">
-                    <button
-                      className="view-details-btn"
-                      onClick={() => handleViewCourse(course._id)}
-                    >
-                      Ver Detalles
-                    </button>
                     
-                    {course.progress?.progress === 100 ? (
-                      <button
-                        className="review-course-btn"
-                        onClick={() => handleViewCourse(course._id)}
-                      >
-                        🎉 Revisar
-                      </button>
-                    ) : (
-                      <button
-                        className="continue-btn"
-                        onClick={() => handleContinueLearning(course._id)}
-                      >
-                        {course.progress?.progress === 0 ? 'Comenzar' : 'Continuar'}
-                      </button>
+                    {/* Información adicional para profesor */}
+                    {isTeacher && (
+                      <div className="meta-item">
+                        <span className="meta-label">Estudiantes:</span>
+                        <span className="meta-text highlight">
+                          {course.studentCount || 0} inscritos
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Progreso para estudiantes */}
+                    {!isTeacher && (
+                      <div className="meta-item">
+                        <span className="meta-label">Progreso:</span>
+                        <span className="meta-text highlight">
+                          {course.progress?.progress || 0}%
+                        </span>
+                      </div>
                     )}
                   </div>
+
+                  {/* Barra de progreso solo para estudiantes */}
+                  {!isTeacher && (
+                    <div className="progress-section">
+                      <div className="progress-header">
+                        <span className="progress-label">Tu progreso</span>
+                        <span className="progress-percent">{course.progress?.progress || 0}%</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${course.progress?.progress || 0}%` }}
+                        ></div>
+                      </div>
+                      <div className="progress-stats">
+                        {course.progress?.completedContents || 0} de {course.progress?.totalContents || 0} lecciones
+                      </div>
+                    </div>
+                  )}
+
+<div className="course-actions">
+  {isTeacher ? (
+    // Acciones para Profesor - Solo 2 botones
+    <>
+      <button
+        className="btn-primary"
+        onClick={() => navigate(`/courses/${course._id}/manage`)}
+      >
+        ⚙️ Gestionar Curso
+      </button>
+      <button
+        className="btn-analytics"
+        onClick={() => navigate(`/courses/${course._id}/analytics`)}
+      >
+        📊 Analytics
+      </button>
+    </>
+  ) : (
+    // Acciones para Estudiante - Se mantienen igual
+    <>
+      <button
+        className="btn-secondary"
+        onClick={() => handleViewCourse(course._id)}
+      >
+        👁️ Detalles
+      </button>
+      
+      {course.progress?.progress === 100 ? (
+        <button
+          className="btn-success"
+          onClick={() => navigate(`/courses/${course._id}/review`)}
+        >
+          🎉 Revisar
+        </button>
+      ) : (
+        <button
+          className="btn-primary"
+          onClick={() => navigate(`/courses/${course._id}/learn`)}
+        >
+          {course.progress?.progress === 0 ? '🚀 Comenzar' : '➡️ Continuar'}
+        </button>
+      )}
+    </>
+  )}
+</div>
                 </div>
               </div>
             ))}
