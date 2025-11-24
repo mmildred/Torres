@@ -16,7 +16,6 @@ export default function Home() {
     setActiveModal(null);
   };
 
-  // Datos del carrusel
   const features = [
     {
       id: 1,
@@ -55,7 +54,6 @@ export default function Home() {
     }
   ];
 
-  // Navegación del carrusel
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev === features.length - 1 ? 0 : prev + 1));
   };
@@ -68,7 +66,6 @@ export default function Home() {
     setCurrentSlide(index);
   };
 
-  // Auto-play del carrusel
   useEffect(() => {
     const timer = setInterval(() => {
       nextSlide();
@@ -77,7 +74,6 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [currentSlide]);
 
-  // Contenido de los modales
   const modalContent = {
     privacidad: {
       title: "Política de Privacidad",

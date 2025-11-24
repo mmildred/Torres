@@ -1,4 +1,3 @@
-// Courses.jsx - Versión con manejo offline
 import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api";
@@ -107,15 +106,15 @@ export default function Courses() {
       }
       setHasFetched(true);
     }
-  }, [user]);
+  }, []); // ← DEPENDENCIAS VACÍAS
 
-  const userId = user?._id; // o user?.id según tu modelo
+  const userId = user?._id;
 
   useEffect(() => {
     if (!hasFetched) {
       fetchCourses();
     }
-  }, [hasFetched, fetchCourses]);
+  }, [hasFetched]); // ← SOLO hasFetched COMO DEPENDENCIA
 
   // Efecto para cargar progreso con manejo offline
   useEffect(() => {

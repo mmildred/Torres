@@ -19,8 +19,6 @@ import CourseLearning from './pages/CourseLearning.jsx';
 import MyCourses from './pages/MyCourses.jsx'
 import ResourceLibrary from './pages/ResourseLibrary.jsx';
 
-
-
 console.log('🚀 Inicializando aplicación...');
 
 const originalImage = window.Image;
@@ -52,7 +50,6 @@ createRoot(document.getElementById('root')).render(
         <Route index element={<Home/>} /> 
         <Route path='courses' element={<Courses/>}/>
         <Route path="/courses/new" element={<CourseNew />} /> 
-        {/* Rutas específicas primero */}
         <Route path="/courses/:courseId/manage" element={<CourseManage />} />
         <Route path="/courses/:courseId/enroll" element={<CourseEnrollment />} />
         <Route path="/courses/:courseId" element={<CourseDetail />} />
