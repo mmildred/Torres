@@ -552,6 +552,5 @@ class DownloadManager {
   }
 }
 
-// Instancia global
 const downloadManager = new DownloadManager();
 export default downloadManager;
