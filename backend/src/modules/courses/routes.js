@@ -153,39 +153,118 @@ r.get('/files/:fileId/download', auth(), async (req, res) => {
     const { fileId } = req.params;
     const userId = req.user.id;
 
+    console.log("📥 Solicitud de descarga:", { 
+      fileId, 
+      userId,
+      authSource: req.query.token ? 'query' : 'header'
+    });
+
+    // Buscar en TODOS los cursos que contengan este archivo
     const courses = await Course.find({
-      'contents._id': fileId,
-      $or: [
-        { isPublished: true },
-        { 'enrollments.userId': userId }
-      ]
+      'contents._id': fileId
     });
 
     let targetContent = null;
+    let targetCourse = null;
+
+    // Encontrar el contenido específico
     for (const course of courses) {
-      const content = course.contents.find(c => c._id.toString() === fileId);
+      const content = course.contents.find(c => 
+        c._id && c._id.toString() === fileId
+      );
       if (content && content.filePath) {
         targetContent = content;
+        targetCourse = course;
         break;
       }
     }
 
     if (!targetContent) {
-      return res.status(404).json({ message: 'Archivo no encontrado o sin permisos' });
+      console.log("❌ Archivo no encontrado en BD:", fileId);
+      return res.status(404).json({ message: 'Archivo no encontrado' });
+    }
+
+    // ✅ VERIFICACIÓN MEJORADA DE PERMISOS
+    const isEnrolled = await Enrollment.findOne({
+      courseId: targetCourse._id,
+      userId: userId
+    });
+
+    const isOwner = targetCourse.owner && targetCourse.owner._id.toString() === userId;
+    const isInstructor = targetCourse.instructors && targetCourse.instructors.some(instructor => 
+      instructor._id && instructor._id.toString() === userId
+    );
+    const isAdmin = req.user.role === 'admin';
+
+    // ✅ LÓGICA MEJORADA: Permitir acceso si el curso está publicado O el usuario tiene permisos
+    const hasAccess = targetCourse.isPublished || isOwner || isInstructor || isAdmin || isEnrolled;
+    
+    if (!hasAccess) {
+      console.log("❌ Sin permisos para descargar");
+      return res.status(403).json({ message: 'No tienes permisos para descargar este archivo' });
     }
 
     const filePath = path.join(uploadDir, targetContent.filePath);
     
+    console.log("🔍 Buscando archivo en:", filePath);
+    
     if (!fs.existsSync(filePath)) {
+      console.log("❌ Archivo físico no encontrado:", filePath);
       return res.status(404).json({ message: 'Archivo físico no encontrado' });
     }
 
-    console.log(`📥 Usuario ${userId} descargó: ${targetContent.title}`);
-    res.download(filePath, targetContent.fileName || targetContent.title);
+    console.log("✅ Enviando archivo:", targetContent.title);
+    
+    // ✅ HEADERS MEJORADOS para descarga
+    const filename = encodeURIComponent(targetContent.fileName || targetContent.title);
+    
+    // Determinar Content-Type basado en extensión
+    const ext = path.extname(targetContent.fileName || '').toLowerCase();
+    const mimeTypes = {
+      '.pdf': 'application/pdf',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.mp4': 'video/mp4',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.txt': 'text/plain',
+      '.zip': 'application/zip'
+    };
+    
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', targetContent.fileSize || fs.statSync(filePath).size);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+
+    // ✅ ENVIAR ARCHIVO CORRECTAMENTE
+    const fileStream = fs.createReadStream(filePath);
+    
+    fileStream.on('error', (error) => {
+      console.error('❌ Error leyendo archivo:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Error al leer archivo' });
+      }
+    });
+    
+    fileStream.pipe(res);
+    
+    res.on('finish', () => {
+      console.log('✅ Archivo enviado exitosamente');
+    });
 
   } catch (error) {
-    console.error('Error al descargar archivo:', error);
-    res.status(500).json({ message: 'Error al descargar archivo', error: error.message });
+    console.error('❌ Error al descargar archivo:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        message: 'Error al descargar archivo', 
+        error: error.message 
+      });
+    }
   }
 });
 
@@ -821,13 +900,6 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
 
     course.contents[contentIndex].updatedAt = new Date();
     
-    // ✅ CORRECCIÓN: Guardar el curso completo
-
-    course.contents[contentIndex] = {
-      ...course.contents[contentIndex].toObject(),
-      ...updateData
-    };
-
     await course.save();
     
     console.log("✅ Contenido actualizado exitosamente");
@@ -851,7 +923,6 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
       });
     }
     
-    console.error('Error actualizando contenido:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
@@ -1134,82 +1205,9 @@ r.patch('/:courseId/unpublish', auth('teacher'), async (req, res) => {
   }
 });
 
-// ✅ RUTA CORREGIDA PARA DESCARGAS - ÚNICA VERSIÓN
-// ✅ RUTA MODIFICADA PARA ACEPTAR TOKEN POR HEADERS Y QUERY PARAM
-r.get('/files/:fileId/download', (req, res, next) => {
-  // ✅ ACEPTAR TOKEN POR QUERY PARAMETER COMO FALLBACK
-  const tokenFromQuery = req.query.token;
-  if (tokenFromQuery && !req.headers.authorization) {
-    console.log('🔐 Usando token desde query parameter');
-    req.headers.authorization = `Bearer ${tokenFromQuery}`;
-  } else if (req.headers.authorization) {
-    console.log('🔐 Usando token desde headers');
-  } else {
-    console.log('⚠️ No se encontró token en headers ni query');
-  }
-  
-  next();
-}, auth(), async (req, res) => {
 // OBTENER CURSO INDIVIDUAL - DEBE IR AL FINAL
 r.get('/:id', auth(), async (req, res) => {
   try {
-    const { fileId } = req.params;
-    const userId = req.user.id;
-
-    console.log("📥 Solicitud de descarga:", { 
-      fileId, 
-      userId,
-      authSource: req.query.token ? 'query' : 'header'
-    });
-
-    // Buscar en TODOS los cursos que contengan este archivo
-    const courses = await Course.find({
-      'contents._id': fileId
-    });
-
-    let targetContent = null;
-    let targetCourse = null;
-
-    // Encontrar el contenido específico
-    for (const course of courses) {
-      const content = course.contents.find(c => 
-        c._id && c._id.toString() === fileId
-      );
-      if (content && content.filePath) {
-        targetContent = content;
-        targetCourse = course;
-        break;
-      }
-    }
-
-    if (!targetContent) {
-      console.log("❌ Archivo no encontrado en BD:", fileId);
-      return res.status(404).json({ message: 'Archivo no encontrado' });
-    }
-
-    // ✅ VERIFICACIÓN MEJORADA DE PERMISOS
-    const isEnrolled = await Enrollment.findOne({
-      courseId: targetCourse._id,
-      userId: userId
-    });
-
-    const isOwner = targetCourse.owner && targetCourse.owner._id.toString() === userId;
-    const isInstructor = targetCourse.instructors && targetCourse.instructors.some(instructor => 
-      instructor._id && instructor._id.toString() === userId
-    );
-    const isAdmin = req.user.role === 'admin';
-
-    // ✅ LÓGICA MEJORADA: Permitir acceso si el curso está publicado O el usuario tiene permisos
-    const hasAccess = targetCourse.isPublished || isOwner || isInstructor || isAdmin || isEnrolled;
-    
-    if (!hasAccess) {
-      console.log("❌ Sin permisos para descargar");
-      return res.status(403).json({ message: 'No tienes permisos para descargar este archivo' });
-    }
-
-    const filePath = path.join(uploadDir, targetContent.filePath);
-    
-    console.log("🔍 Buscando archivo en:", filePath);
     const course = await Course.findById(req.params.id);
     
     if (!course) {
@@ -1222,88 +1220,15 @@ r.get('/:id', auth(), async (req, res) => {
     );
     const isAdmin = req.user.role === 'admin';
     
-    if (!fs.existsSync(filePath)) {
-      console.log("❌ Archivo físico no encontrado:", filePath);
-      return res.status(404).json({ message: 'Archivo físico no encontrado' });
-    }
-
-    console.log("✅ Enviando archivo:", targetContent.title);
-    
-    // ✅ HEADERS MEJORADOS para descarga
-    const filename = encodeURIComponent(targetContent.fileName || targetContent.title);
-    
-    // Determinar Content-Type basado en extensión
-    const ext = path.extname(targetContent.fileName || '').toLowerCase();
-    const mimeTypes = {
-      '.pdf': 'application/pdf',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.mp4': 'video/mp4',
-      '.doc': 'application/msword',
-      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      '.ppt': 'application/vnd.ms-powerpoint',
-      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      '.txt': 'text/plain',
-      '.zip': 'application/zip'
-    };
-    
-    const contentType = mimeTypes[ext] || 'application/octet-stream';
-    
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', targetContent.fileSize || fs.statSync(filePath).size);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-
-    // ✅ ENVIAR ARCHIVO CORRECTAMENTE
-    const fileStream = fs.createReadStream(filePath);
-    
-    fileStream.on('error', (error) => {
-      console.error('❌ Error leyendo archivo:', error);
-      if (!res.headersSent) {
-        res.status(500).json({ message: 'Error al leer archivo' });
-      }
-    });
-    
-    fileStream.pipe(res);
-    
-    res.on('finish', () => {
-      console.log('✅ Archivo enviado exitosamente');
-    });
-
     if (!course.isPublished && !isOwner && !isInstructor && !isAdmin) {
       return res.status(403).json({ message: 'No tienes acceso a este curso' });
     }
 
     res.json(course.toJSON());
   } catch (error) {
-    console.error('❌ Error al descargar archivo:', error);
-    if (!res.headersSent) {
-      res.status(500).json({ 
-        message: 'Error al descargar archivo', 
-        error: error.message 
-      });
-    }
     console.error('Error obteniendo curso:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
-// SERVIR ARCHIVOS ESTÁTICOS
-r.get('/uploads/:filename', async (req, res) => {
-  try {
-    const { filename } = req.params;
-    const filePath = path.join(uploadDir, filename);
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'Archivo no encontrado' });
-    }
-
-    res.sendFile(filePath);
-  } catch (error) {
-    console.error('Error sirviendo archivo:', error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-});
-
-export default r;
+export default r
