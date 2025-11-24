@@ -312,24 +312,6 @@ export default function CourseManage() {
         {/* ✅ BOTONES PARA AGREGAR CONTENIDO - ACTUALIZADO */}
         <div className="content-actions">
           <button
-            className="add-content-btn"
-            onClick={() => {
-              setEditingContent(null);
-              setContentForm({
-                title: '',
-                type: 'video',
-                description: '',
-                instructions: '',
-                duration: 0,
-                file: null
-              });
-              setShowContentForm(true);
-            }}
-          >
-            + Agregar Contenido (Texto/Quiz)
-          </button>
-          
-          <button
             className="upload-file-btn"
             onClick={() => {
               setUploadForm({

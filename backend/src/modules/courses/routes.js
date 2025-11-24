@@ -25,50 +25,6 @@ r.use((req, res, next) => {
   next();
 });
 
-// RUTA PARA OBTENER MIS CURSOS - DEBE IR AL INICIO
-r.get('/my-courses', auth(), async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    const enrollments = await Enrollment.find({ userId: userId });
-    
-    const courseIds = enrollments.map(enrollment => enrollment.courseId);
-    
-    const courses = await Course.find({ 
-      _id: { $in: courseIds },
-      isPublished: true 
-    });
-    
-    const coursesWithProgress = await Promise.all(
-      courses.map(async (course) => {
-        const enrollment = enrollments.find(e => e.courseId.toString() === course._id.toString());
-        const progress = {
-          enrolled: true,
-          progress: course.contents?.length > 0 ? 
-            Math.round((enrollment.completedContentIds.length / course.contents.length) * 100) : 0,
-          completedContents: enrollment.completedContentIds.length,
-          totalContents: course.contents?.length || 0,
-          lastAccessAt: enrollment.lastAccessAt,
-          enrolledAt: enrollment.createdAt
-        };
-        
-        return {
-          ...course.toJSON(),
-          progress: progress,
-          isEnrolled: true
-        };
-      })
-    );
-    
-    res.json(coursesWithProgress);
-  } catch (error) {
-    console.error('Error obteniendo mis cursos:', error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-});
-
-// RUTA PRINCIPAL PARA OBTENER TODOS LOS CURSOS
-r.get('/', async (req, res) => {
 // =============================================================================
 // 🔥 RUTAS ESPECÍFICAS - ORDEN CRÍTICO: MÁS ESPECÍFICAS PRIMERO
 // =============================================================================
@@ -146,9 +102,21 @@ r.get('/files/my-downloads', auth(), async (req, res) => {
   }
 });
 
-// RUTAS CON ID - DEBEN IR DESPUÉS DE LAS RUTAS ESPECIALES
-r.get('/:id', auth(), async (req, res) => {
-r.get('/files/:fileId/download', auth(), async (req, res) => {
+// ✅ RUTA MODIFICADA PARA ACEPTAR TOKEN POR HEADERS Y QUERY PARAM
+r.get('/files/:fileId/download', (req, res, next) => {
+  // ✅ ACEPTAR TOKEN POR QUERY PARAMETER COMO FALLBACK
+  const tokenFromQuery = req.query.token;
+  if (tokenFromQuery && !req.headers.authorization) {
+    console.log('🔐 Usando token desde query parameter');
+    req.headers.authorization = `Bearer ${tokenFromQuery}`;
+  } else if (req.headers.authorization) {
+    console.log('🔐 Usando token desde headers');
+  } else {
+    console.log('⚠️ No se encontró token en headers ni query');
+  }
+  
+  next();
+}, auth(), async (req, res) => {
   try {
     const { fileId } = req.params;
     const userId = req.user.id;
@@ -710,8 +678,6 @@ r.get('/uploads/:filename', async (req, res) => {
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
-
-// RUTA DE INSCRIPCIÓN 
 
 // INSCRIPCIÓN
 r.post('/:courseId/enroll', auth(), async (req, res) => {
