@@ -318,53 +318,6 @@ export default function CourseContents({
         </span>
       </div>
 
-      {/* ✅ BOTÓN DE DEBUG TEMPORAL */}
-      {isInstructor && (
-        <div style={{marginBottom: '20px', padding: '10px', background: '#f5f5f5', borderRadius: '5px'}}>
-          <button 
-            onClick={() => setShowDebug(!showDebug)}
-            className="btn btn-warning"
-            style={{fontSize: '12px', padding: '5px 10px'}}
-          >
-            🛠️ Debug
-          </button>
-          
-          {showDebug && (
-            <div style={{marginTop: '10px'}}>
-              <button 
-                onClick={handleDebugCleanup}
-                className="btn btn-danger"
-                style={{fontSize: '12px', padding: '5px 10px', marginRight: '10px'}}
-              >
-                🧹 Limpiar Corruptos
-              </button>
-              <button 
-                onClick={checkToken}
-                className="btn btn-info"
-                style={{fontSize: '12px', padding: '5px 10px', marginRight: '10px'}}
-              >
-                🔐 Verificar Token
-              </button>
-              <button 
-                onClick={() => {
-                  downloadManager.getDownloadedFiles().then(files => {
-                    console.log('📋 Archivos descargados:', files);
-                    alert(`Tienes ${files.length} archivos descargados. Revisa la consola.`);
-                  });
-                }}
-                className="btn btn-info"
-                style={{fontSize: '12px', padding: '5px 10px'}}
-              >
-                📊 Ver Estado
-              </button>
-              <span style={{marginLeft: '10px', fontSize: '12px', color: '#666'}}>
-                Backend: {BACKEND_URL}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="contents-list">
         {visibleContents.map((content, index) => {
           const hasFile = !!content.filePath;
