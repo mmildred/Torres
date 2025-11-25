@@ -289,29 +289,44 @@ r.get('/my-courses', auth(), async (req, res) => {
 r.get('/instructor/stats', auth('teacher'), async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log(`📊 Cargando estadísticas para instructor: ${userId}`);
     
+    // ✅ CORREGIDO: Buscar cursos del instructor de forma segura
     const myCourses = await Course.find({ 
-      'owner._id': userId,
-      isPublished: true 
+      'owner._id': userId 
     });
     
+    console.log(`📚 Cursos encontrados: ${myCourses.length}`);
+    
     const courseIds = myCourses.map(course => course._id);
+    
+    // ✅ CORREGIDO: Buscar inscripciones de forma segura
     const enrollments = await Enrollment.find({ 
       courseId: { $in: courseIds } 
     });
     
+    console.log(`👥 Inscripciones encontradas: ${enrollments.length}`);
+    
+    // ✅ CORREGIDO: Calcular estudiantes por curso de forma segura
     const studentsByCourse = {};
     enrollments.forEach(enrollment => {
-      const courseId = enrollment.courseId.toString();
-      if (!studentsByCourse[courseId]) {
-        studentsByCourse[courseId] = new Set();
+      // ✅ VERIFICAR SI courseId EXISTE ANTES DE toString()
+      const courseId = enrollment.courseId ? enrollment.courseId.toString() : null;
+      if (courseId) {
+        if (!studentsByCourse[courseId]) {
+          studentsByCourse[courseId] = new Set();
+        }
+        // ✅ VERIFICAR SI userId EXISTE ANTES DE toString()
+        if (enrollment.userId) {
+          studentsByCourse[courseId].add(enrollment.userId.toString());
+        }
       }
-      studentsByCourse[courseId].add(enrollment.userId.toString());
     });
     
+    // ✅ CORREGIDO: Procesar cursos con manejo de errores
     const coursesWithStats = myCourses.map(course => {
-      const courseId = course._id.toString();
-      const studentCount = studentsByCourse[courseId] ? studentsByCourse[courseId].size : 0;
+      const courseId = course._id ? course._id.toString() : null;
+      const studentCount = courseId && studentsByCourse[courseId] ? studentsByCourse[courseId].size : 0;
       
       return {
         ...course.toJSON(),
@@ -319,22 +334,90 @@ r.get('/instructor/stats', auth('teacher'), async (req, res) => {
       };
     });
     
-    const totalStudents = enrollments.reduce((unique, enrollment) => {
-      return unique.add(enrollment.userId.toString());
-    }, new Set()).size;
+    // ✅ CORREGIDO: Calcular estudiantes únicos de forma segura
+    const uniqueStudents = new Set();
+    enrollments.forEach(enrollment => {
+      if (enrollment.userId) {
+        uniqueStudents.add(enrollment.userId.toString());
+      }
+    });
 
+    const totalStudents = uniqueStudents.size;
+    const totalEnrollments = enrollments.length;
+
+    console.log(`✅ Estadísticas calculadas: ${coursesWithStats.length} cursos, ${totalStudents} estudiantes únicos`);
+    
     res.json({
       totalCourses: myCourses.length,
       totalStudents: totalStudents,
-      totalEnrollments: enrollments.length,
+      totalEnrollments: totalEnrollments,
       courses: coursesWithStats
     });
     
   } catch (error) {
-    console.error('Error obteniendo estadísticas de instructor:', error);
+    console.error('❌ Error obteniendo estadísticas de instructor:', error);
     res.status(500).json({ 
-      message: 'Error del servidor',
+      message: 'Error del servidor al cargar estadísticas',
       error: error.message 
+    });
+  }
+});
+
+r.get('/instructor/my-courses', auth(), async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    
+    console.log(`👨‍🏫 Buscando cursos del instructor: ${instructorId}`);
+    
+    // Buscar cursos donde el usuario sea el propietario
+    const courses = await Course.find({ 
+      'owner._id': instructorId 
+    })
+    .sort({ createdAt: -1 });
+
+    console.log(`📚 Encontrados ${courses.length} cursos del instructor`);
+
+    // Obtener estadísticas para cada curso
+    const coursesWithStats = await Promise.all(
+      courses.map(async (course) => {
+        try {
+          const enrollments = await Enrollment.find({ courseId: course._id });
+          const studentCount = enrollments.length;
+          
+          // Calcular progreso promedio del curso
+          let avgProgress = 0;
+          if (studentCount > 0) {
+            const totalProgress = enrollments.reduce((sum, enrollment) => 
+              sum + (enrollment.progress || 0), 0
+            );
+            avgProgress = totalProgress / studentCount;
+          }
+
+          return {
+            ...course.toJSON(),
+            studentCount,
+            avgProgress: Math.round(avgProgress),
+            totalEnrollments: studentCount
+          };
+        } catch (error) {
+          console.error(`Error procesando curso ${course._id}:`, error);
+          return {
+            ...course.toJSON(),
+            studentCount: 0,
+            avgProgress: 0,
+            totalEnrollments: 0
+          };
+        }
+      })
+    );
+
+    console.log(`✅ Enviando ${coursesWithStats.length} cursos con estadísticas`);
+    res.json(coursesWithStats);
+  } catch (error) {
+    console.error('❌ Error cargando cursos del instructor:', error);
+    res.status(500).json({ 
+      error: 'Error al cargar los cursos del instructor',
+      details: error.message 
     });
   }
 });
@@ -425,11 +508,7 @@ r.get('/', async (req, res) => {
   }
 });
 
-// =============================================================================
-// 🔥 RUTAS CON :courseId - ORDEN ESPECÍFICO
-// =============================================================================
 
-// 📊 ANALYTICS - DEBE IR PRIMERO
 r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -442,7 +521,8 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    const isOwner = course.owner && course.owner._id.toString() === userId;
+    // Verificación de permisos
+    const isOwner = course.owner && course.owner._id && course.owner._id.toString() === userId;
     const isInstructor = course.instructors && course.instructors.some(instructor => 
       instructor._id && instructor._id.toString() === userId
     );
@@ -452,16 +532,35 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
     }
 
     const enrollments = await Enrollment.find({ courseId: courseId });
-    const userIds = enrollments.map(e => e.userId);
+    console.log(`👥 Inscripciones encontradas: ${enrollments.length}`);
+
+    // ✅ CORREGIDO: Buscar por AMBOS campos (studentId O userId)
+    const userIds = enrollments.map(e => e.studentId || e.userId).filter(id => id);
+    console.log(`📋 IDs de usuario encontrados: ${userIds.length}`);
+    
     const users = await User.find({ _id: { $in: userIds } });
+    console.log(`👤 Usuarios cargados: ${users.length}`);
     
     const userMap = {};
     users.forEach(user => {
-      userMap[user._id.toString()] = user;
+      if (user && user._id) {
+        userMap[user._id.toString()] = user;
+      }
     });
 
+    // ✅ CORREGIDO: Procesar estudiantes usando AMBOS campos
     const studentsProgress = enrollments.map((enrollment) => {
-      const user = userMap[enrollment.userId.toString()];
+      // Usar studentId primero, si no existe usar userId
+      const userIdentifier = enrollment.studentId || enrollment.userId;
+      const userId = userIdentifier ? userIdentifier.toString() : null;
+      const user = userId ? userMap[userId] : null;
+      
+      // Filtrar si no hay usuario válido
+      if (!user) {
+        console.log(`👻 Inscripción sin usuario - Enrollment: ${enrollment._id}`);
+        return null;
+      }
+      
       const completedContents = enrollment.completedContentIds?.length || 0;
       const totalContents = course.contents?.length || 1;
       const progress = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
@@ -472,17 +571,17 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       else if (progress >= 40) status = 'intermediate';
 
       return {
-        studentId: enrollment.userId,
-        name: user ? user.name : 'Estudiante',
-        email: user ? user.email : 'No disponible',
+        studentId: userIdentifier || enrollment._id,
+        name: user.name,
+        email: user.email,
         progress: progress,
         completedContents: completedContents,
         totalContents: totalContents,
-        lastActivity: enrollment.lastAccessAt || enrollment.updatedAt,
+        lastActivity: enrollment.lastAccessAt || enrollment.updatedAt || enrollment.createdAt,
         enrolledAt: enrollment.createdAt,
         status: status
       };
-    });
+    }).filter(student => student !== null);
 
     const totalStudents = studentsProgress.length;
     const avgProgress = totalStudents > 0 
@@ -508,7 +607,7 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       students: studentsProgress.sort((a, b) => b.progress - a.progress)
     };
 
-    console.log('✅ Analytics generados exitosamente');
+    console.log(`✅ Analytics generados: ${studentsProgress.length} estudiantes válidos de ${enrollments.length} inscripciones`);
     res.json(response);
 
   } catch (error) {
@@ -520,37 +619,56 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
   }
 });
 
-// ENROLLMENTS
 r.get('/:courseId/enrollments', auth('teacher'), async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.user.id;
+
+    console.log(`📋 Enrollments solicitados - Curso: ${courseId}, Usuario: ${userId}`);
 
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    const isOwner = course.owner._id.toString() === userId;
-    const isInstructor = course.instructors.some(instructor => 
-      instructor._id.toString() === userId
+    // Verificación de permisos
+    const isOwner = course.owner && course.owner._id && course.owner._id.toString() === userId;
+    const isInstructor = course.instructors && course.instructors.some(instructor => 
+      instructor._id && instructor._id.toString() === userId
     );
     
     if (!isOwner && !isInstructor && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'No autorizado' });
+      return res.status(403).json({ message: 'No tienes permisos para ver estas inscripciones' });
     }
 
     const enrollments = await Enrollment.find({ courseId: courseId });
-    const userIds = enrollments.map(e => e.userId);
+    console.log(`📋 Inscripciones encontradas: ${enrollments.length}`);
+
+    // ✅ CORREGIDO: Buscar por AMBOS campos (studentId O userId)
+    const userIds = enrollments.map(e => e.studentId || e.userId).filter(id => id);
+    console.log(`👤 IDs de usuario encontrados: ${userIds.length}`);
+    
     const users = await User.find({ _id: { $in: userIds } });
+    console.log(`👤 Usuarios cargados: ${users.length}`);
     
     const userMap = {};
     users.forEach(user => {
-      userMap[user._id.toString()] = user;
+      if (user && user._id) {
+        userMap[user._id.toString()] = user;
+      }
     });
-
+    
     const enrichedEnrollments = enrollments.map(enrollment => {
-      const user = userMap[enrollment.userId.toString()];
+      
+      const userIdentifier = enrollment.studentId || enrollment.userId;
+      const userId = userIdentifier ? userIdentifier.toString() : null;
+      const user = userId ? userMap[userId] : null;
+    
+      if (!user) {
+        console.log(`👻 Enrollment sin usuario - Enrollment: ${enrollment._id}`);
+        return null;
+      }
+      
       const totalContents = course.contents?.length || 1;
       const completedContents = enrollment.completedContentIds?.length || 0;
       const progress = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
@@ -558,26 +676,31 @@ r.get('/:courseId/enrollments', auth('teacher'), async (req, res) => {
       return {
         _id: enrollment._id,
         student: {
-          _id: user?._id,
-          name: user?.name || 'Estudiante',
-          email: user?.email || 'No disponible'
+          _id: user._id,
+          name: user.name,
+          email: user.email
         },
         progress: progress,
         completedContents: completedContents,
-        lastAccess: enrollment.lastAccessAt || enrollment.updatedAt,
-        createdAt: enrollment.createdAt,
+        totalContents: totalContents,
+        lastAccess: enrollment.lastAccessAt || enrollment.updatedAt || enrollment.createdAt,
+        enrolledAt: enrollment.createdAt,
         updatedAt: enrollment.updatedAt
       };
-    });
+    }).filter(enrollment => enrollment !== null);
 
+    console.log(`✅ Enrollments enriquecidos: ${enrichedEnrollments.length} válidos de ${enrollments.length} inscripciones`);
     res.json(enrichedEnrollments);
+
   } catch (error) {
-    console.error('Error obteniendo enrollments:', error);
-    res.status(500).json({ message: 'Error del servidor' });
+    console.error('❌ ERROR obteniendo enrollments:', error);
+    res.status(500).json({ 
+      message: 'Error interno del servidor',
+      error: error.message
+    });
   }
 });
 
-// MANIFEST
 r.get('/:id/manifest', async (req, res) => {
   try {
     const c = await Course.findById(req.params.id);

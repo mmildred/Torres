@@ -1,4 +1,3 @@
-// public/sw.js - VERSIÓN LIMPIA
 const STATIC_CACHE = 'static-v4';
 const FILES_CACHE = 'edu-files-v1';
 
@@ -24,18 +23,30 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
+  // ✅ NUEVO: EXCLUIR IMÁGENES Y ARCHIVOS DE AVATAR
+  if (url.pathname.includes('/uploads/avatars/') || 
+      url.pathname.match(/\.(jpg|jpeg|png|gif|webp|avif|svg)$/i)) {
+    // ⚠️ NO INTERCEPTAR IMÁGENES - dejar que pasen directamente
+    if (IS_DEV) console.log('🖼️ Imagen detectada, pasando directamente:', url.pathname);
+    return;
+  }
+
+  // ✅ NUEVO: EXCLUIR ENDPOINTS CRÍTICOS DE AUTENTICACIÓN
+  if (url.pathname.includes('/auth/profile/me') || 
+      url.pathname.includes('/auth/') && request.method === 'GET') {
+    if (IS_DEV) console.log('🔐 Endpoint de auth detectado, pasando directamente');
+    return;
+  }
+
   // 🔥 ESTRATEGIA PARA RUTAS DE API
   const isApiRoute =
     url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/auth/') ||
-    url.pathname.startsWith('/admin/') ||
     (url.pathname.startsWith('/courses/') && !url.pathname.includes('/uploads/'));
 
   if (isApiRoute) {
     event.respondWith(
       fetch(request).catch(error => {
-        // ❗ Solo logueamos errores si quieres, o comenta esto también:
-        // console.error('Error de red para API:', url.pathname, error);
+        if (IS_DEV) console.error('❌ Error de red para API:', url.pathname);
 
         // Fallback específico para progreso
         if (url.pathname.includes('/progress/me')) {
