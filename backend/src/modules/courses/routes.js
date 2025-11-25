@@ -679,52 +679,121 @@ r.get('/uploads/:filename', async (req, res) => {
   }
 });
 
-// INSCRIPCIÓN
+// En la ruta de inscripción - CORREGIDO
 r.post('/:courseId/enroll', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.id.toString();
 
+    console.log('📥 Solicitud de inscripción:', { 
+      courseId, 
+      userId,
+      userObject: req.user 
+    });
+
+    // Validar ID de curso
+    if (!courseId || !courseId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ 
+        message: 'ID de curso inválido',
+        receivedId: courseId 
+      });
+    }
+
+    // Buscar el curso
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
+    // Verificar si el curso está publicado
     if (!course.isPublished) {
-      return res.status(403).json({ message: 'No puedes inscribirte en un curso no publicado' });
+      return res.status(403).json({ 
+        message: 'Este curso no está disponible para inscripción' 
+      });
     }
 
-    const existingEnrollment = await Enrollment.findOne({ courseId, userId });
+    // Verificar si ya está inscrito
+    const existingEnrollment = await Enrollment.findOne({ 
+      courseId: courseId, 
+      userId: userId 
+    });
+
     if (existingEnrollment) {
-      return res.status(400).json({ message: 'Ya estás inscrito en este curso' });
+      console.log('⚠️ Usuario ya inscrito');
+      return res.status(400).json({ 
+        message: 'Ya estás inscrito en este curso',
+        enrollment: existingEnrollment 
+      });
     }
 
-    const enrollment = await Enrollment.create({
-      courseId,
-      userId,
+    // Crear nueva inscripción
+    const newEnrollment = await Enrollment.create({
+      courseId: courseId,
+      userId: userId,
       completedContentIds: [],
+      submissions: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
       lastAccessAt: new Date()
     });
 
-    res.status(200).json({
+    console.log('✅ Inscripción exitosa:', newEnrollment._id);
+
+    res.status(201).json({
+      success: true,
       message: 'Inscripción exitosa',
-      enrollment: {
-        id: enrollment._id,
-        courseId: enrollment.courseId,
-        enrolledAt: enrollment.createdAt,
-        lastAccessAt: enrollment.lastAccessAt
+      enrollment: newEnrollment,
+      course: {
+        _id: course._id,
+        title: course.title,
+        description: course.description
       }
     });
 
   } catch (error) {
-    console.error('Error en inscripción:', error);
-    if (error.code === 11000) {
-      return res.status(400).json({ message: 'Ya estás inscrito en este curso' });
+    console.error('❌ Error en inscripción:', error);
+    
+    // Manejo específico de errores
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Error de validación',
+        errors: Object.values(error.errors).map(e => e.message)
+      });
     }
-    res.status(500).json({ message: 'Error del servidor' });
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({ 
+        message: 'ID de curso inválido' 
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Error del servidor',
+      error: error.message 
+    });
   }
 });
 
+// ✅ RUTA AUXILIAR: Verificar estado de inscripción (útil para debugging)
+r.get('/:courseId/enrollment/status', auth(), async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+
+    const course = await Course.findById(courseId);
+    const enrollment = await Enrollment.findOne({ courseId, userId });
+
+    res.json({
+      courseExists: !!course,
+      coursePublished: course?.isPublished || false,
+      isEnrolled: !!enrollment,
+      enrollmentDetails: enrollment || null
+    });
+  } catch (error) {
+    console.error('Error verificando estado:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
 // VERIFICAR INSCRIPCIÓN
 r.get('/:courseId/enrollment/check', auth(), async (req, res) => {
   try {

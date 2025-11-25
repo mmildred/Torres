@@ -290,52 +290,51 @@ export default function MyCourses() {
                       </div>
                     </div>
                   )}
-
-<div className="course-actions">
-  {isTeacher ? (
-    // Acciones para Profesor - Solo 2 botones
-    <>
-      <button
-        className="btn-primary"
-        onClick={() => navigate(`/courses/${course._id}/manage`)}
-      >
-        ⚙️ Gestionar Curso
-      </button>
-      <button
-        className="btn-analytics"
-        onClick={() => navigate(`/courses/${course._id}/analytics`)}
-      >
-        📊 Analytics
-      </button>
-    </>
-  ) : (
-    // Acciones para Estudiante - Se mantienen igual
-    <>
-      <button
-        className="btn-secondary"
-        onClick={() => handleViewCourse(course._id)}
-      >
-        👁️ Detalles
-      </button>
-      
-      {course.progress?.progress === 100 ? (
-        <button
-          className="btn-success"
-          onClick={() => navigate(`/courses/${course._id}/review`)}
-        >
-          🎉 Revisar
-        </button>
-      ) : (
-        <button
-          className="btn-primary"
-          onClick={() => navigate(`/courses/${course._id}/learn`)}
-        >
-          {course.progress?.progress === 0 ? '🚀 Comenzar' : '➡️ Continuar'}
-        </button>
-      )}
-    </>
-  )}
-</div>
+                  <div className="course-actions">
+                    {isTeacher ? (
+                      // Acciones para Profesor - Solo 2 botones
+                      <>
+                        <button
+                          className="btn-primary"
+                          onClick={() => navigate(`/courses/${course._id}/manage`)}
+                        >
+                          ⚙️ Gestionar Curso
+                        </button>
+                        <button
+                          className="btn-analytics"
+                          onClick={() => navigate(`/courses/${course._id}/analytics`)}
+                        >
+                          📊 Analytics
+                        </button>
+                      </>
+                    ) : (
+                      // Acciones para Estudiante - Se mantienen igual
+                      <>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => handleViewCourse(course._id)}
+                        >
+                          👁️ Detalles
+                        </button>
+                        
+                        {course.progress?.progress === 100 ? (
+                          <button
+                            className="btn-success"
+                            onClick={() => navigate(`/courses/${course._id}/review`)}
+                          >
+                            🎉 Revisar
+                          </button>
+                        ) : (
+                          <button
+                            className="btn-primary"
+                            onClick={() => navigate(`/courses/${course._id}/learn`)}
+                          >
+                            {course.progress?.progress === 0 ? '🚀 Comenzar' : '➡️ Continuar'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

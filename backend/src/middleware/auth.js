@@ -17,15 +17,30 @@ export function auth(requiredRole) {
         return res.status(401).json({ message: 'Token inválido' });
       }
       
-      if (requiredRole && user.role !== requiredRole) {
+      if (requiredRole && user.role !== requiredRole && user.role !== 'admin') {
         return res.status(403).json({ 
           message: `Acceso denegado. Se requiere rol: ${requiredRole}` 
         });
       }
       
-      req.user = user;
+      // ✅ CORRECCIÓN: Normalizar el objeto de usuario
+      req.user = {
+        _id: user._id,
+        id: user._id.toString(), // ✅ Agregar propiedad 'id'
+        name: user.name,
+        email: user.email,
+        role: user.role
+      };
+      
+      console.log('Usuario autenticado:', {
+        id: req.user.id,
+        name: req.user.name,
+        role: req.user.role
+      });
+      
       next();
     } catch (error) {
+      console.error('Error en middleware auth:', error);
       res.status(401).json({ message: 'Token inválido' });
     }
   };

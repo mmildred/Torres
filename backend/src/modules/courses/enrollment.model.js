@@ -1,3 +1,4 @@
+// enrollment.model.js - VERSIÓN MEJORADA
 import mongoose from 'mongoose';
 
 const submissionSchema = new mongoose.Schema({
@@ -9,22 +10,10 @@ const submissionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  fileUrl: {
-    type: String,
-    default: ''
-  },
-  fileName: {
-    type: String,
-    default: ''
-  },
-  filePath: {
-    type: String,
-    default: ''
-  },
-  comments: {
-    type: String,
-    default: ''
-  },
+  fileUrl: String,
+  fileName: String,
+  filePath: String,
+  comments: String,
   status: {
     type: String,
     enum: ['submitted', 'graded', 'returned'],
@@ -35,22 +24,21 @@ const submissionSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
-  feedback: {
-    type: String,
-    default: ''
-  }
+  feedback: String
 });
 
 const enrollmentSchema = new mongoose.Schema({
   courseId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
-    required: true
+    required: true,
+    index: true
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true
   },
   completedContentIds: [{
     type: mongoose.Schema.Types.ObjectId
@@ -64,6 +52,13 @@ const enrollmentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-enrollmentSchema.index({ courseId: 1, userId: 1 }, { unique: true });
+// ✅ ÍNDICE CORREGIDO - Con nombre explícito
+enrollmentSchema.index(
+  { courseId: 1, userId: 1 }, 
+  { 
+    unique: true, 
+    name: "unique_enrollment_per_course_and_user" 
+  }
+);
 
 export default mongoose.model('Enrollment', enrollmentSchema);

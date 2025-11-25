@@ -6,12 +6,19 @@ import "./Courses.css";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
+  const [filteredCourses, setFilteredCourses] = useState([]);
   const [hasFetched, setHasFetched] = useState(false);
   const [progressByCourse, setProgressByCourse] = useState({});
   const [loadingStates, setLoadingStates] = useState({});
   const [error, setError] = useState(null);
   const [deletingById, setDeletingById] = useState({});
   const [offlineMode, setOfflineMode] = useState(false);
+
+  // Estados para los filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedLevel, setSelectedLevel] = useState("all");
+  const [categories, setCategories] = useState([]);
 
   const user = getUser();
   const navigate = useNavigate();
@@ -27,6 +34,7 @@ export default function Courses() {
         console.log("📂 Cargando cursos desde cache");
         const parsedCourses = JSON.parse(cachedCourses);
         setCourses(parsedCourses);
+        setFilteredCourses(parsedCourses);
 
         if (cachedProgress) {
           setProgressByCourse(JSON.parse(cachedProgress));
@@ -39,6 +47,52 @@ export default function Courses() {
     }
     return false;
   };
+
+  // Extraer categorías únicas de los cursos
+  const extractCategories = (coursesList) => {
+    const uniqueCategories = [...new Set(coursesList
+      .map(course => course.category)
+      .filter(category => category && category.trim() !== "")
+    )].sort();
+    
+    setCategories(uniqueCategories);
+  };
+
+  // Aplicar filtros
+  const applyFilters = useCallback(() => {
+    let filtered = courses;
+
+    // Filtro por término de búsqueda (título o descripción)
+    if (searchTerm) {
+      filtered = filtered.filter(course =>
+        course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        course.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtro por categoría
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(course => 
+        course.category === selectedCategory
+      );
+    }
+
+    // Filtro por nivel
+    if (selectedLevel !== "all") {
+      filtered = filtered.filter(course => 
+        course.level?.toLowerCase() === selectedLevel.toLowerCase()
+      );
+    }
+
+    setFilteredCourses(filtered);
+  }, [courses, searchTerm, selectedCategory, selectedLevel]);
+
+  // Efecto para aplicar filtros cuando cambian los criterios
+  useEffect(() => {
+    if (courses.length > 0) {
+      applyFilters();
+    }
+  }, [courses, applyFilters]);
 
   const isCourseInstructor = (course) => {
     if (!user || !course) return false;
@@ -82,6 +136,8 @@ export default function Courses() {
       console.log("📊 Cursos procesados:", coursesWithOwner.length);
 
       setCourses(coursesWithOwner);
+      setFilteredCourses(coursesWithOwner);
+      extractCategories(coursesWithOwner);
       setOfflineMode(false);
       setHasFetched(true);
 
@@ -106,7 +162,7 @@ export default function Courses() {
       }
       setHasFetched(true);
     }
-  }, []); // ← DEPENDENCIAS VACÍAS
+  }, []);
 
   const userId = user?._id;
 
@@ -114,18 +170,16 @@ export default function Courses() {
     if (!hasFetched) {
       fetchCourses();
     }
-  }, [hasFetched]); // ← SOLO hasFetched COMO DEPENDENCIA
+  }, [hasFetched]);
 
   // Efecto para cargar progreso con manejo offline
   useEffect(() => {
-    // Si no hay usuario, cursos o todavía no se han cargado, no hacer nada
     if (!userId || !hasFetched || !courses.length) return;
 
     let cancelled = false;
 
     (async () => {
       try {
-        // Limitar a solo los primeros 8 cursos para evitar sobrecarga
         const coursesToCheck = courses.slice(0, 8);
 
         const results = await Promise.allSettled(
@@ -236,7 +290,6 @@ export default function Courses() {
         [courseId]: progressData,
       }));
 
-      // Actualizar cache
       const cachedProgress = JSON.parse(
         localStorage.getItem("cached_progress") || "{}"
       );
@@ -266,14 +319,12 @@ export default function Courses() {
       await api.delete(`/courses/${courseId}`);
       setCourses((prev) => prev.filter((c) => c._id !== courseId));
 
-      // Limpiar progreso del curso eliminado
       setProgressByCourse((prev) => {
         const newProgress = { ...prev };
         delete newProgress[courseId];
         return newProgress;
       });
 
-      // Actualizar cache de cursos
       const cachedCourses = JSON.parse(
         localStorage.getItem("cached_courses") || "[]"
       );
@@ -285,7 +336,6 @@ export default function Courses() {
         JSON.stringify(updatedCache)
       );
 
-      // Actualizar cache de progreso
       const cachedProgress = JSON.parse(
         localStorage.getItem("cached_progress") || "{}"
       );
@@ -335,13 +385,11 @@ export default function Courses() {
       await api.post(`/courses/${courseId}/enroll`);
       alert("🎉 ¡Te has inscrito exitosamente al curso!");
 
-      // Actualizar progreso después de inscribirse
       await loadCourseProgress(courseId);
     } catch (err) {
       console.error("Error al inscribirse:", err);
       if (err.response?.status === 400) {
         alert("Ya estás inscrito en este curso");
-        // Si ya está inscrito, cargar su progreso
         await loadCourseProgress(courseId);
       } else {
         alert(
@@ -386,6 +434,13 @@ export default function Courses() {
     setOfflineMode(false);
     setError(null);
     fetchCourses();
+  };
+
+  // Limpiar filtros
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedCategory("all");
+    setSelectedLevel("all");
   };
 
   // Estado de carga
@@ -500,34 +555,109 @@ export default function Courses() {
         )}
       </div>
 
+      {/* Sistema de Filtros */}
+      <div className="filters-section">
+        <div className="filters-header">
+          <h3>Filtrar Cursos</h3>
+          {(searchTerm || selectedCategory !== "all" || selectedLevel !== "all") && (
+            <button className="clear-filters-btn" onClick={clearFilters}>
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+        
+        <div className="filters-grid">
+          {/* Búsqueda por texto */}
+          <div className="filter-group">
+            <label htmlFor="search-input" className="filter-label">
+              🔍 Buscar cursos
+            </label>
+            <input
+              id="search-input"
+              type="text"
+              placeholder="Buscar por título o descripción..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+
+          {/* Filtro por categoría */}
+          <div className="filter-group">
+            <label htmlFor="category-select" className="filter-label">
+              📂 Categoría
+            </label>
+            <select
+              id="category-select"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">Todas las categorías</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro por nivel */}
+          <div className="filter-group">
+            <label htmlFor="level-select" className="filter-label">
+              🎯 Nivel de dificultad
+            </label>
+            <select
+              id="level-select"
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">Todos los niveles</option>
+              <option value="beginner">Principiante</option>
+              <option value="intermediate">Intermedio</option>
+              <option value="advanced">Avanzado</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Contador de resultados */}
+        <div className="results-info">
+          <span className="results-count">
+            Mostrando {filteredCourses.length} de {courses.length} cursos
+          </span>
+          {(searchTerm || selectedCategory !== "all" || selectedLevel !== "all") && (
+            <span className="active-filters">
+              Filtros activos: 
+              {searchTerm && ` "${searchTerm}"`}
+              {selectedCategory !== "all" && ` • ${selectedCategory}`}
+              {selectedLevel !== "all" && ` • ${
+                selectedLevel === "beginner" ? "Principiante" :
+                selectedLevel === "intermediate" ? "Intermedio" : "Avanzado"
+              }`}
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="courses-grid">
-        {courses.length === 0 ? (
+        {filteredCourses.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">📚</div>
-            <h3>No hay cursos disponibles</h3>
+            <div className="empty-icon">🔍</div>
+            <h3>No se encontraron cursos</h3>
             <p>
-              {offlineMode
-                ? "No hay cursos en cache. Conéctate a internet para cargar los cursos."
-                : "Pronto agregaremos nuevos cursos a nuestro catálogo"}
+              {searchTerm || selectedCategory !== "all" || selectedLevel !== "all"
+                ? "No hay cursos que coincidan con los filtros aplicados. Intenta con otros criterios."
+                : "No hay cursos disponibles en este momento."}
             </p>
-            {offlineMode ? (
-              <button className="btn btn-primary" onClick={retryConnection}>
-                🔄 Reintentar conexión
+            {(searchTerm || selectedCategory !== "all" || selectedLevel !== "all") && (
+              <button className="btn btn-primary" onClick={clearFilters}>
+                🔄 Mostrar todos los cursos
               </button>
-            ) : (
-              user?.role === "teacher" && (
-                <button
-                  onClick={() => navigate("/courses/new")}
-                  className="btn btn-primary"
-                >
-                  Crear Primer Curso
-                </button>
-              )
             )}
           </div>
         ) : (
-          courses.map((course) => {
-            // Manejo seguro del progreso con valores por defecto
+          filteredCourses.map((course) => {
             const prog = progressByCourse[course._id] || {
               enrolled: false,
               progress: 0,
@@ -574,12 +704,10 @@ export default function Courses() {
                     </span>
                   </div>
 
-                  {/* Badge de inscrito */}
                   {isEnrolled && (
                     <div className="enrolled-badge">✅ Inscrito</div>
                   )}
 
-                  {/* Badge de offline */}
                   {prog.offline && (
                     <div className="offline-badge">📴 Offline</div>
                   )}
@@ -616,7 +744,6 @@ export default function Courses() {
                       : ""}
                   </p>
 
-                  {/* Mostrar progreso solo si está inscrito */}
                   {user && isEnrolled && (
                     <div className="progress-container">
                       <div className="progress-header">

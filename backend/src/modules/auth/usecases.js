@@ -25,16 +25,26 @@ export async function register(req, res) {
       role: 'student'
     });
     
+    // ✅ CORRECCIÓN: Usar user._id en lugar de user.id
     const token = jwt.sign({ 
-      id: user.id, 
+      id: user._id.toString(),  // ← CAMBIAR user.id por user._id.toString()
       role: user.role 
     }, process.env.JWT_SECRET, { 
-      expiresIn: '1d' 
+      expiresIn: '30d'  // ← Aumentar tiempo de expiración
     });
     
+    // ✅ CORRECCIÓN: No usar toJSON(), enviar objeto explícito
     res.json({ 
       token, 
-      user: user.toJSON() 
+      user: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        bio: user.bio
+      }
     });
   } catch (error) {
     console.error('Error en registro:', error); 
@@ -45,30 +55,56 @@ export async function register(req, res) {
 export async function login(req, res) {
   try {
     const { email, password } = req.body;
+    
+    console.log('🔐 Login attempt for:', email);
+    
     const user = await User.findOne({ email });
     
     if (!user) {
+      console.log('❌ User not found:', email);
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
+    
+    console.log('👤 User found:', user.name);
     
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
+      console.log('❌ Invalid password for:', email);
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
     
-    const token = jwt.sign({ 
-      id: user.id, 
+    // ✅ CORRECCIÓN: Usar user._id en lugar de user.id
+    const tokenPayload = {
+      id: user._id.toString(),  // ← CLAVE: usar _id.toString()
       role: user.role 
-    }, process.env.JWT_SECRET, { 
-      expiresIn: '1d' 
-    });
+    };
     
+    console.log('📝 Token payload:', tokenPayload);
+    
+    const token = jwt.sign(
+      tokenPayload, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '30d' }  // ← Aumentar tiempo
+    );
+    
+    console.log('✅ Login successful for:', user.name);
+    
+    // ✅ CORRECCIÓN: No usar toJSON(), enviar objeto explícito
     res.json({ 
+      message: 'Login exitoso',  // ← Agregar mensaje
       token, 
-      user: user.toJSON() 
+      user: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        bio: user.bio
+      }
     });
   } catch (error) {
-    console.error('Error en login:', error);
+    console.error('💥 Error en login:', error);
     res.status(500).json({ message: 'Error en el login' });
   }
 }
@@ -101,16 +137,30 @@ export async function registerWithInvite(req, res) {
     });
 
     codeDoc.used = true;
-    codeDoc.usedBy = user.id;
+    codeDoc.usedBy = user._id;  // ← CORREGIR: usar _id
     codeDoc.usedAt = new Date();
     await codeDoc.save();
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    // ✅ CORRECCIÓN: Usar user._id
+    const token = jwt.sign({ 
+      id: user._id.toString(),  // ← CORREGIR
+      role: user.role 
+    }, process.env.JWT_SECRET, { 
+      expiresIn: '30d' 
+    });
     
     res.json({
       message: 'Registro exitoso',
       token,
-      user: user.toJSON()
+      user: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        bio: user.bio
+      }
     });
   } catch (error) {
     console.error('Error en registro con invitación:', error);
