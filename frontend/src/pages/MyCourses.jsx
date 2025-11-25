@@ -8,6 +8,7 @@ export default function MyCourses() {
   const [courses, setCourses] = useState([]);
   const [instructorStats, setInstructorStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const user = getUser();
 
@@ -25,13 +26,35 @@ export default function MyCourses() {
   const loadCourses = async () => {
     try {
       setLoading(true);
+      setError(null);
 
       if (isTeacher) {
-        // Solo cargar estadísticas de profesor
-        console.log("👨‍🏫 Cargando estadísticas de instructor...");
-        const statsRes = await api.get("/courses/instructor/stats");
-        setInstructorStats(statsRes.data);
-        setCourses(statsRes.data.courses || []);
+        // Intentar cargar cursos del profesor
+        console.log("👨‍🏫 Cargando cursos del instructor...");
+        
+        try {
+          // PRIMERO: Intentar cargar los cursos creados por el profesor
+          const myInstructorCourses = await api.get("/courses/instructor/my-courses");
+          console.log("✅ Cursos del instructor cargados:", myInstructorCourses.data.length);
+          setCourses(myInstructorCourses.data);
+          
+          // LUEGO: Intentar cargar estadísticas (si falla, no es crítico)
+          try {
+            const statsRes = await api.get("/courses/instructor/stats");
+            setInstructorStats(statsRes.data);
+            console.log("✅ Estadísticas del instructor cargadas");
+          } catch (statsError) {
+            console.warn("⚠️ No se pudieron cargar las estadísticas:", statsError.message);
+            // No es crítico, continuamos sin estadísticas
+          }
+          
+        } catch (instructorError) {
+          console.error("❌ Error cargando cursos del instructor:", instructorError);
+          
+          // FALLBACK: Cargar todos los cursos y filtrar los del profesor
+          await loadTeacherCoursesFallback();
+        }
+        
       } else {
         // Para estudiantes, cargar cursos inscritos
         console.log("🎓 Cargando cursos como estudiante...");
@@ -41,6 +64,7 @@ export default function MyCourses() {
       
     } catch (error) {
       console.error("Error cargando cursos:", error);
+      setError("Error al cargar los cursos. Intenta recargar la página.");
       
       // Fallback para estudiantes
       if (!isTeacher) {
@@ -48,6 +72,27 @@ export default function MyCourses() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // FALLBACK para profesores: cargar todos los cursos y filtrar
+  const loadTeacherCoursesFallback = async () => {
+    try {
+      console.log("🔄 Usando fallback para cargar cursos del profesor...");
+      const allCoursesRes = await api.get("/courses");
+      const allCourses = allCoursesRes.data;
+      
+      // Filtrar cursos donde el usuario es el propietario
+      const teacherCourses = allCourses.filter(course => 
+        course.owner && course.owner._id === user._id
+      );
+      
+      console.log(`📚 Cursos del profesor encontrados: ${teacherCourses.length}`);
+      setCourses(teacherCourses);
+      
+    } catch (fallbackError) {
+      console.error("❌ Error en fallback de profesor:", fallbackError);
+      setError("No se pudieron cargar tus cursos. Verifica tu conexión.");
     }
   };
 
@@ -117,6 +162,13 @@ export default function MyCourses() {
           }
         </p>
         
+        {error && (
+          <div className="error-banner">
+            ⚠️ {error}
+            <button onClick={loadCourses} className="retry-btn">Reintentar</button>
+          </div>
+        )}
+        
         {/* Estadísticas */}
         <div className="courses-stats">
           {isTeacher && instructorStats ? (
@@ -139,6 +191,32 @@ export default function MyCourses() {
                   {instructorStats.courses.reduce((acc, course) => acc + (course.studentCount || 0), 0)}
                 </span>
                 <span className="stat-label">Estudiantes Activos</span>
+              </div>
+            </>
+          ) : isTeacher ? (
+            // Estadísticas básicas para profesor (sin stats del endpoint)
+            <>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">{courses.length}</span>
+                <span className="stat-label">Cursos Creados</span>
+              </div>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">
+                  {courses.reduce((acc, course) => acc + (course.studentCount || 0), 0)}
+                </span>
+                <span className="stat-label">Total Estudiantes</span>
+              </div>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">
+                  {courses.filter(course => course.studentCount > 0).length}
+                </span>
+                <span className="stat-label">Cursos Activos</span>
+              </div>
+              <div className="stat-card teacher-stat">
+                <span className="stat-number">
+                  {Math.round(courses.reduce((acc, course) => acc + (course.avgProgress || 0), 0) / (courses.length || 1))}%
+                </span>
+                <span className="stat-label">Progreso Promedio</span>
               </div>
             </>
           ) : (
@@ -192,7 +270,7 @@ export default function MyCourses() {
             {isTeacher ? (
               <button 
                 className="create-course-btn"
-                onClick={() => navigate("/instructor/courses/create")}
+                onClick={() => navigate("/courses/new")}
               >
                 Crear Mi Primer Curso
               </button>
@@ -223,7 +301,7 @@ export default function MyCourses() {
                   {/* Badges para profesor */}
                   {isTeacher && course.studentCount > 0 && (
                     <div className="students-badge">
-                      👥 {course.studentCount} estudiantes
+                      👥 {course.studentCount || 0} estudiantes
                     </div>
                   )}
                   
@@ -291,51 +369,51 @@ export default function MyCourses() {
                     </div>
                   )}
 
-<div className="course-actions">
-  {isTeacher ? (
-    // Acciones para Profesor - Solo 2 botones
-    <>
-      <button
-        className="btn-primary"
-        onClick={() => navigate(`/courses/${course._id}/manage`)}
-      >
-        ⚙️ Gestionar Curso
-      </button>
-      <button
-        className="btn-analytics"
-        onClick={() => navigate(`/courses/${course._id}/analytics`)}
-      >
-        📊 Analytics
-      </button>
-    </>
-  ) : (
-    // Acciones para Estudiante - Se mantienen igual
-    <>
-      <button
-        className="btn-secondary"
-        onClick={() => handleViewCourse(course._id)}
-      >
-        👁️ Detalles
-      </button>
-      
-      {course.progress?.progress === 100 ? (
-        <button
-          className="btn-success"
-          onClick={() => navigate(`/courses/${course._id}/review`)}
-        >
-          🎉 Revisar
-        </button>
-      ) : (
-        <button
-          className="btn-primary"
-          onClick={() => navigate(`/courses/${course._id}/learn`)}
-        >
-          {course.progress?.progress === 0 ? '🚀 Comenzar' : '➡️ Continuar'}
-        </button>
-      )}
-    </>
-  )}
-</div>
+                  <div className="course-actions">
+                    {isTeacher ? (
+                      // Acciones para Profesor
+                      <>
+                        <button
+                          className="btn-primary"
+                          onClick={() => navigate(`/courses/${course._id}/manage`)}
+                        >
+                          ⚙️ Gestionar Curso
+                        </button>
+                        <button
+                          className="btn-analytics"
+                          onClick={() => navigate(`/courses/${course._id}/analytics`)}
+                        >
+                          📊 Analytics
+                        </button>
+                      </>
+                    ) : (
+                      // Acciones para Estudiante
+                      <>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => handleViewCourse(course._id)}
+                        >
+                          👁️ Detalles
+                        </button>
+                        
+                        {course.progress?.progress === 100 ? (
+                          <button
+                            className="btn-success"
+                            onClick={() => navigate(`/courses/${course._id}/review`)}
+                          >
+                            🎉 Revisar
+                          </button>
+                        ) : (
+                          <button
+                            className="btn-primary"
+                            onClick={() => navigate(`/courses/${course._id}/learn`)}
+                          >
+                            {course.progress?.progress === 0 ? '🚀 Comenzar' : '➡️ Continuar'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
