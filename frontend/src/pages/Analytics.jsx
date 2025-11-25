@@ -1,4 +1,3 @@
-// Analytics.jsx - Versión mejorada con datos reales
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
@@ -31,28 +30,51 @@ export default function Analytics() {
       // Opción 1: Si tienes un endpoint específico de analytics
       try {
         const analyticsResponse = await api.get(`courses/${courseId}/analytics`);
-        setAnalytics(processApiAnalytics(analyticsResponse.data));
+        const processedData = processApiAnalytics(analyticsResponse.data);
+        
+        // ✅ DEBUG EN POSICIÓN CORRECTA
         console.log("✅ Analytics cargados desde endpoint específico");
+        console.log("🐛 DEBUG - Estructura completa de analytics:", processedData);
+        console.log("🐛 DEBUG - Students array:", processedData?.students);
+        console.log("🐛 DEBUG - Primer student:", processedData?.students?.[0]);
+        console.log("🐛 DEBUG - Keys disponibles:", processedData?.students?.map(s => s ? Object.keys(s) : 'null'));
+        
+        setAnalytics(processedData);
         return;
       } catch (err) {
-        console.log("⚠️ No hay endpoint de analytics, usando método alternativo");
+        console.log("⚠️ Endpoint de analytics falló, usando método alternativo:", err.message);
       }
 
-      // Opción 2: Cargar datos del curso y procesar manualmente
-      const [courseRes, enrollmentsRes] = await Promise.all([
-        api.get(`courses/${courseId}`),
-        api.get(`courses/${courseId}/enrollments`).catch(() => ({ data: [] }))
-      ]);
+      // Opción 2: Cargar solo el curso (sin enrollments si fallan)
+      try {
+        const courseRes = await api.get(`courses/${courseId}`);
+        const course = courseRes.data;
 
-      const course = courseRes.data;
-      const enrollments = enrollmentsRes.data;
+        console.log("📚 Curso cargado:", course.title);
 
-      console.log("📚 Curso cargado:", course);
-      console.log("👥 Inscripciones cargadas:", enrollments);
+        // Intentar cargar enrollments, pero si falla, usar array vacío
+        let enrollments = [];
+        try {
+          const enrollmentsRes = await api.get(`courses/${courseId}/enrollments`);
+          enrollments = enrollmentsRes.data;
+          console.log("👥 Inscripciones cargadas:", enrollments.length);
+        } catch (enrollError) {
+          console.warn("⚠️ No se pudieron cargar las inscripciones:", enrollError.message);
+          enrollments = [];
+        }
 
-      // Procesar datos para analytics
-      const processedAnalytics = buildAnalyticsFromData(course, enrollments);
-      setAnalytics(processedAnalytics);
+        // Procesar datos para analytics
+        const processedAnalytics = buildAnalyticsFromData(course, enrollments);
+        
+        // ✅ DEBUG PARA MÉTODO ALTERNATIVO
+        console.log("🐛 DEBUG - Analytics método alternativo:", processedAnalytics);
+        
+        setAnalytics(processedAnalytics);
+
+      } catch (courseError) {
+        console.error("❌ Error cargando curso:", courseError);
+        throw courseError;
+      }
 
     } catch (error) {
       console.error("❌ Error cargando analytics:", error);
@@ -63,6 +85,8 @@ export default function Analytics() {
   };
 
   const processApiAnalytics = (data) => {
+    console.log("🔍 Datos crudos del backend:", data);
+    
     // Si el backend ya devuelve analytics procesados
     return {
       course: {
@@ -79,8 +103,9 @@ export default function Analytics() {
         notStartedStudents: data.notStartedStudents || 0,
         completionRate: Math.round(data.completionRate || 0)
       },
-      students: (data.students || []).map(student => ({
-        studentId: student._id || student.id,
+      students: (data.students || []).map((student, index) => ({
+        // ✅ KEY MEJORADA con múltiples fallbacks
+        studentId: student.studentId || student._id || `student-${index}`,
         name: student.name || student.fullName || "Sin nombre",
         email: student.email || "Sin email",
         progress: Math.round(student.progress || 0),
@@ -115,7 +140,7 @@ export default function Analytics() {
 
     const totalContents = getTotalContents(course);
 
-    return enrollments.map((enrollment) => {
+    return enrollments.map((enrollment, index) => {
       // Manejar diferentes estructuras de enrollment
       const student = enrollment.student || enrollment.user || enrollment;
       const progress = enrollment.progress || enrollment.completionPercentage || 0;
@@ -123,7 +148,8 @@ export default function Analytics() {
                        Math.round((progress / 100) * totalContents);
 
       return {
-        studentId: student._id || student.id || enrollment._id,
+        // ✅ KEY MEJORADA con múltiples fallbacks
+        studentId: student._id || student.id || enrollment._id || `enrollment-${index}`,
         name: student.name || student.fullName || student.username || "Estudiante",
         email: student.email || "Sin email",
         progress: Math.round(progress),
@@ -215,12 +241,16 @@ export default function Analytics() {
 
   const formatDate = (dateString) => {
     if (!dateString) return "Sin actividad";
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-MX', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-MX', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (error) {
+      return "Fecha inválida";
+    }
   };
 
   if (loading) {
@@ -228,15 +258,31 @@ export default function Analytics() {
       <div className="loading-container">
         <div className="loading-spinner"></div>
         <p>Cargando estadísticas del curso...</p>
+        <p>Curso ID: {courseId}</p>
       </div>
     );
   }
 
   if (!analytics) {
+    console.log("❌ Analytics es NULL o UNDEFINED");
     return (
       <div className="error-container">
         <h2>Error al cargar los datos</h2>
         <p>{error || "No se pudieron cargar los datos del curso"}</p>
+        <button className="btn-primary" onClick={loadAnalytics}>
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  // ✅ VERIFICACIÓN MEJORADA de la estructura de datos
+  if (!analytics.students || !Array.isArray(analytics.students)) {
+    console.log("❌ PROBLEMA: students no es un array:", analytics.students);
+    return (
+      <div className="error-container">
+        <h2>Error en la estructura de datos</h2>
+        <p>Los datos de estudiantes no tienen el formato correcto</p>
         <button className="btn-primary" onClick={loadAnalytics}>
           Reintentar
         </button>
@@ -290,26 +336,30 @@ export default function Analytics() {
         
         {analytics.students.length > 0 ? (
           <div className="students-list">
-            {analytics.students.map((student) => {
+            {analytics.students.map((student, index) => {
               const statusConfig = getStatusConfig(student.status);
+              
+              // ✅ KEY MEJORADA - Múltiples fallbacks para evitar el error
+              const uniqueKey = student.studentId || student._id || `student-${index}`;
+              
               return (
-                <div key={student.studentId} className="student-card">
+                <div key={uniqueKey} className="student-card">
                   <div className="student-info">
-                    <h4>{student.name}</h4>
-                    <p className="student-email">{student.email}</p>
+                    <h4>{student.name || "Estudiante"}</h4>
+                    <p className="student-email">{student.email || "Sin email"}</p>
                     <small className="student-activity">
                       Última actividad: {formatDate(student.lastActivity)}
                     </small>
                     <small className="student-completed">
-                      {student.completedContents} de {analytics.course.totalContents} contenidos completados
+                      {student.completedContents || 0} de {analytics.course.totalContents} contenidos completados
                     </small>
                   </div>
                   <div className="student-progress">
-                    <span className="progress-percentage">{student.progress}%</span>
+                    <span className="progress-percentage">{student.progress || 0}%</span>
                     <div className="progress-bar">
                       <div 
                         className="progress-fill" 
-                        style={{ width: `${student.progress}%` }}
+                        style={{ width: `${student.progress || 0}%` }}
                       ></div>
                     </div>
                   </div>
