@@ -89,6 +89,11 @@ const CourseSchema = new Schema(
       type: OwnerSchema,
       required: true,
     },
+    // NUEVO: Campos para el período del curso
+  hasEndDate: { type: Boolean, default: false },
+  enrollmentEndDate: { type: Date }, // Fecha límite para inscripción
+  courseEndDate: { type: Date }, // Fecha de cierre del curso
+  isClosed: { type: Boolean, default: false }, // Si el curso ya cerró
     instructors: [InstructorSchema],
     contents: [ContentSchema], 
     isPublished: {

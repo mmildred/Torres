@@ -24,6 +24,101 @@ export default function Courses() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Función para verificar si el curso está abierto para inscripción
+  const isCourseOpenForEnrollment = (course) => {
+    if (!course.hasEndDate) return true; // Sin fecha límite, siempre abierto
+    
+    const now = new Date();
+    const enrollmentEnd = new Date(course.enrollmentEndDate);
+    
+    return now <= enrollmentEnd && !course.isClosed;
+  };
+
+  // Función para verificar si el curso está cerrado
+  const isCourseClosed = (course) => {
+    if (course.isClosed) return true;
+    if (!course.hasEndDate) return false;
+    
+    const now = new Date();
+    const courseEnd = new Date(course.courseEndDate);
+    
+    return now > courseEnd;
+  };
+
+  // Función para formatear la fecha
+  const formatDate = (dateString) => {
+    if (!dateString) return "No definida";
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Componente para mostrar el badge de estado del curso
+  const CourseStatusBadge = ({ course }) => {
+    // Si el curso no tiene fechas, mostrar "Disponible"
+    if (!course.hasEndDate) {
+      return <div className="course-status-badge available">🟢 Disponible</div>;
+    }
+    
+    if (isCourseClosed(course)) {
+      return <div className="course-status-badge closed">🔒 Cerrado</div>;
+    }
+    
+    if (!isCourseOpenForEnrollment(course)) {
+      return <div className="course-status-badge enrollment-closed">⏰ Inscripciones Cerradas</div>;
+    }
+    
+    return <div className="course-status-badge open">✅ Abierto</div>;
+  };
+
+  // Componente para mostrar información de fechas
+  const CourseDateInfo = ({ course }) => {
+    // Si el curso no tiene fechas definidas, mostrar duración normal
+    if (!course.hasEndDate) {
+      return (
+        <div className="course-duration-info">
+          <div className="duration-item">
+            <span className="duration-icon">⏱️</span>
+            <span className="duration-text">{course.duration || "Duración flexible"}</span>
+          </div>
+          <div className="duration-note">
+            Curso disponible permanentemente
+          </div>
+        </div>
+      );
+    }
+    
+    const now = new Date();
+    const enrollmentEnd = new Date(course.enrollmentEndDate);
+    const courseEnd = new Date(course.courseEndDate);
+    
+    return (
+      <div className="course-dates-info">
+        <div className="date-item">
+          <span className="date-label">Inscripciones hasta:</span>
+          <span className="date-value">{formatDate(course.enrollmentEndDate)}</span>
+        </div>
+        <div className="date-item">
+          <span className="date-label">Cierra el:</span>
+          <span className="date-value">{formatDate(course.courseEndDate)}</span>
+        </div>
+        
+        {/* Contador regresivo */}
+        {now < enrollmentEnd && (
+          <div className="countdown">
+            <span className="countdown-text">
+              {Math.ceil((enrollmentEnd - now) / (1000 * 60 * 60 * 24))} días para inscribirse
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+
+
   // Cargar cursos desde cache (si existen)
   const loadCachedCourses = () => {
     try {
@@ -124,9 +219,12 @@ export default function Courses() {
       });
 
       console.log("✅ Respuesta del servidor - cantidad:", res.data.length);
-      console.log("📋 Cursos recibidos:", res.data);
+      console.log("📋 Cursos recibidos (primer curso):", res.data[0]);
 
-      const coursesWithOwner = res.data.map((course) => ({
+      // Agregar datos de prueba para demostrar la funcionalidad
+      const enhancedCourses = enhanceCoursesWithDates(res.data);
+
+      const coursesWithOwner = enhancedCourses.map((course) => ({
         ...course,
         owner: course.owner || { name: "Administrador" },
         enrolled: false,
@@ -134,6 +232,7 @@ export default function Courses() {
       }));
 
       console.log("📊 Cursos procesados:", coursesWithOwner.length);
+      console.log("📅 Ejemplo de curso con fechas:", coursesWithOwner[0]);
 
       setCourses(coursesWithOwner);
       setFilteredCourses(coursesWithOwner);
@@ -669,6 +768,8 @@ export default function Courses() {
             const isLoading = loadingStates[course._id];
             const userIsInstructor = isCourseInstructor(course);
             const isEnrolled = prog.enrolled;
+            const isOpenForEnrollment = isCourseOpenForEnrollment(course);
+            const isClosed = isCourseClosed(course);
 
             return (
               <div key={course._id} className="course-card">
@@ -704,6 +805,9 @@ export default function Courses() {
                     </span>
                   </div>
 
+                  {/* Badge de estado del curso */}
+                  <CourseStatusBadge course={course} />
+
                   {isEnrolled && (
                     <div className="enrolled-badge">✅ Inscrito</div>
                   )}
@@ -728,12 +832,15 @@ export default function Courses() {
                       </div>
                     )}
                     <div className="meta-item">
-                      <span className="meta-icon">⏱️</span>
+                      <span className="meta-icon">📊</span>
                       <span className="meta-text">
-                        {course.duration || "Auto-guiado"}
+                        {course.hasEndDate ? "Curso con fechas" : "Acceso permanente"}
                       </span>
                     </div>
                   </div>
+
+                  {/* Información de duración y fechas */}
+                  <CourseDateInfo course={course} />
 
                   <p className="course-description">
                     {course.description?.slice(0, 120) ||
@@ -789,11 +896,12 @@ export default function Courses() {
                         <button
                           className="btn btn-primary"
                           onClick={() => handleAccessCourse(course._id)}
+                          disabled={isClosed}
+                          title={isClosed ? "Este curso ha cerrado" : ""}
                         >
                           <span className="btn-icon">▶️</span>
-                          {prog.progress === 100
-                            ? "🎉 Certificado"
-                            : "Continuar"}
+                          {isClosed ? "Curso Cerrado" : 
+                           prog.progress === 100 ? "🎉 Certificado" : "Continuar"}
                         </button>
                       ) : userIsInstructor ? (
                         <button
@@ -809,23 +917,30 @@ export default function Courses() {
                         <button
                           className="btn btn-primary"
                           onClick={() => handleEnroll(course._id)}
-                          disabled={isLoading || offlineMode}
+                          disabled={isLoading || offlineMode || !isOpenForEnrollment || isClosed}
+                          title={!isOpenForEnrollment ? 
+                            "Las inscripciones para este curso han cerrado" : 
+                            isClosed ? "Este curso ha cerrado" : ""}
                         >
                           <span className="btn-icon">🎯</span>
-                          {isLoading
-                            ? "Inscribiendo..."
-                            : offlineMode
-                            ? "Sin conexión"
-                            : "Inscribirse"}
+                          {isClosed ? "Curso Cerrado" :
+                           !isOpenForEnrollment ? "Inscripciones Cerradas" :
+                           isLoading ? "Inscribiendo..." :
+                           offlineMode ? "Sin conexión" : "Inscribirse"}
                         </button>
                       )
                     ) : (
                       <button
                         className="btn btn-primary"
                         onClick={() => navigate("/register")}
+                        disabled={!isOpenForEnrollment || isClosed}
+                        title={!isOpenForEnrollment ? 
+                          "Las inscripciones para este curso han cerrado" : 
+                          isClosed ? "Este curso ha cerrado" : ""}
                       >
                         <span className="btn-icon">🔒</span>
-                        Acceder al Curso
+                        {isClosed ? "Curso Cerrado" :
+                         !isOpenForEnrollment ? "Inscripciones Cerradas" : "Acceder al Curso"}
                       </button>
                     )}
 
