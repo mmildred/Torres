@@ -1,0 +1,244 @@
+/* Insights Panel */
+.insights-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.insights-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.insights-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.insights-count {
+  background: rgba(255,255,255,0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.insights-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+}
+
+.insight-card {
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.95);
+  color: #1f2937;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.insight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.insight-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.insight-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.insight-type-icon {
+  font-size: 1.25rem;
+}
+
+.insight-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.insight-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.priority-indicator {
+  font-size: 0.875rem;
+}
+
+.insight-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.insight-message {
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+/* Tipo-specific styles */
+.insight-prediction .insight-badge { background: #dbeafe; color: #1e40af; }
+.insight-risk .insight-badge { background: #fee2e2; color: #dc2626; }
+.insight-achievement .insight-badge { background: #d1fae5; color: #065f46; }
+.insight-recommendation .insight-badge { background: #fef3c7; color: #92400e; }
+.insight-segmentation .insight-badge { background: #e0e7ff; color: #3730a3; }
+.insight-opportunity .insight-badge { background: #fce7f3; color: #be185d; }
+.insight-pace .insight-badge { background: #f3e8ff; color: #7e22ce; }
+.insight-content-risk .insight-badge { background: #ffedd5; color: #c2410c; }
+
+/* Priority borders */
+.insight-card.high { border-left: 4px solid #ef4444; }
+.insight-card.medium { border-left: 4px solid #f59e0b; }
+.insight-card.low { border-left: 4px solid #10b981; }
+.insight-card.normal { border-left: 4px solid #6b7280; }
+
+/* Metric boxes */
+.insight-metric {
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+
+.insight-metric strong {
+  color: #1e40af;
+}
+
+/* Students list */
+.insight-students {
+  margin: 1rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.students-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.student-tag {
+  padding: 0.25rem 0.75rem;
+  background: #f3f4f6;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+
+/* Actions list */
+.insight-actions {
+  margin: 1rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.insight-actions ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.25rem;
+}
+
+.insight-actions li {
+  margin: 0.5rem 0;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* Segments grid */
+.insight-segments {
+  margin: 1rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.segments-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.segment-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.segment-name {
+  text-transform: capitalize;
+  color: #6b7280;
+}
+
+.segment-count {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  border: 2px dashed rgba(255,255,255,0.3);
+}
+
+.empty-state p {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.empty-state small {
+  opacity: 0.8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .insight-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .insight-meta {
+    align-self: flex-start;
+  }
+  
+  .segments-grid {
+    grid-template-columns: 1fr;
+  }
+}

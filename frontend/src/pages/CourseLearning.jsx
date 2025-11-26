@@ -59,38 +59,39 @@ export default function CourseLearning() {
     }
   };
 
-  const handleMarkComplete = async (contentId) => {
-    try {
-      setUpdating(true);
-      console.log('🔄 Marcando contenido como completado:', contentId);
-      
-      const response = await api.post(`/courses/${courseId}/contents/${contentId}/complete`);
-      
-      console.log('✅ Contenido marcado como completado:', response.data);
+ const handleMarkComplete = async (contentId) => {
+  try {
+    setUpdating(true);
+    console.log('🔄 Marcando contenido como completado:', contentId);
     
-      setEnrollment(prev => ({
-        ...prev,
-        progress: response.data.progress,
-        completedContents: response.data.completedContents,
-        totalContents: response.data.totalContents
-      }));
-      
-     
-      await fetchCourseData();
-      
-    } catch (error) {
-      console.error('❌ Error marcando contenido como completado:', error);
-      
-      if (error.response?.status === 401) {
-        alert('Debes iniciar sesión para completar contenidos');
-        navigate('/login');
-      } else {
-        alert(error.response?.data?.message || 'Error al marcar como completado');
-      }
-    } finally {
-      setUpdating(false);
+    const response = await api.post(`/courses/${courseId}/contents/${contentId}/complete`);
+    
+    console.log('✅ Contenido marcado como completado:', response.data);
+  
+    setEnrollment(prev => ({
+      ...prev,
+      progress: response.data.progress,
+      completedContents: response.data.completedContents,
+      totalContents: response.data.totalContents,
+      completedContentIds: [...(prev?.completedContentIds || []), contentId]
+    }));
+    
+    // ✅ ACTUALIZAR EL BOTÓN ESPECÍFICO (opcional - el estado ya lo hace)
+    // El botón debería cambiar automáticamente porque isContentCompleted() usa enrollment
+    
+  } catch (error) {
+    console.error('❌ Error marcando contenido como completado:', error);
+    
+    if (error.response?.status === 401) {
+      alert('Debes iniciar sesión para completar contenidos');
+      navigate('/login');
+    } else {
+      alert(error.response?.data?.message || 'Error al marcar como completado');
     }
-  };
+  } finally {
+    setUpdating(false);
+  }
+};
 
   const isContentCompleted = (contentId) => {
     if (!enrollment?.completedContentIds) return false;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
 import { isAuthenticated } from "../auth";
+import InsightsPanel from "../pages/InsightsPanel";
 import "./Analytics.css";
 
 export default function Analytics() {
@@ -84,37 +85,37 @@ export default function Analytics() {
     }
   };
 
-  const processApiAnalytics = (data) => {
-    console.log("🔍 Datos crudos del backend:", data);
+const processApiAnalytics = (data) => {
+  console.log("🔍 Datos crudos del backend:", data);
+  
+  return {
+    course: {
+      _id: data.courseId || courseId,
+      title: data.courseTitle || "Curso",
+      description: data.courseDescription || "",
+      totalContents: data.totalContents || 0
+    },
+    summary: {
+      totalStudents: data.totalStudents || 0,
+      avgProgress: Math.round(data.averageProgress || 0),
+      completedStudents: data.completedStudents || 0,
+      activeStudents: data.activeStudents || 0,
+      notStartedStudents: data.notStartedStudents || 0,
+      completionRate: Math.round(data.completionRate || 0)
+    },
+    students: (data.students || []).map((student, index) => ({
+      studentId: student.studentId || student._id || `student-${index}`,
+      name: student.name || student.fullName || "Sin nombre",
+      email: student.email || "Sin email",
+      progress: Math.round(student.progress || 0),
+      completedContents: student.completedContents || 0,
+      lastActivity: student.lastActivity || student.updatedAt,
+      status: getProgressStatus(student.progress || 0)
+    })),
     
-    // Si el backend ya devuelve analytics procesados
-    return {
-      course: {
-        _id: data.courseId || courseId,
-        title: data.courseTitle || "Curso",
-        description: data.courseDescription || "",
-        totalContents: data.totalContents || 0
-      },
-      summary: {
-        totalStudents: data.totalStudents || 0,
-        avgProgress: Math.round(data.averageProgress || 0),
-        completedStudents: data.completedStudents || 0,
-        activeStudents: data.activeStudents || 0,
-        notStartedStudents: data.notStartedStudents || 0,
-        completionRate: Math.round(data.completionRate || 0)
-      },
-      students: (data.students || []).map((student, index) => ({
-        // ✅ KEY MEJORADA con múltiples fallbacks
-        studentId: student.studentId || student._id || `student-${index}`,
-        name: student.name || student.fullName || "Sin nombre",
-        email: student.email || "Sin email",
-        progress: Math.round(student.progress || 0),
-        completedContents: student.completedContents || 0,
-        lastActivity: student.lastActivity || student.updatedAt,
-        status: getProgressStatus(student.progress || 0)
-      }))
-    };
+    insights: data.insights || []
   };
+};
 
   const buildAnalyticsFromData = (course, enrollments) => {
     // Construir analytics desde datos del curso y enrollments
@@ -339,7 +340,6 @@ export default function Analytics() {
             {analytics.students.map((student, index) => {
               const statusConfig = getStatusConfig(student.status);
               
-              // ✅ KEY MEJORADA - Múltiples fallbacks para evitar el error
               const uniqueKey = student.studentId || student._id || `student-${index}`;
               
               return (
@@ -377,6 +377,9 @@ export default function Analytics() {
           </div>
         )}
       </div>
+
+      {/* Insights Inteligentes */}
+        <InsightsPanel insights={analytics.insights} />
 
       {/* Acciones */}
       <div className="actions-section">

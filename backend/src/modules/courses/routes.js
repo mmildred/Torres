@@ -6,6 +6,7 @@ import Course from './course.model.js';
 import Enrollment from './enrollment.model.js';
 import { auth } from '../../middleware/auth.js';
 import User from '../auth/user.model.js';
+import { enhanceAnalyticsWithAI} from '../../utils/analytics-decorators.js';
 
 const r = Router();
 
@@ -18,18 +19,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
-// Middleware de debug para todas las rutas
 r.use((req, res, next) => {
   console.log(`📍 [${req.method}] ${req.originalUrl}`);
   console.log('👤 User:', req.user?.id);
   next();
 });
 
-// =============================================================================
-// 🔥 RUTAS ESPECÍFICAS - ORDEN CRÍTICO: MÁS ESPECÍFICAS PRIMERO
-// =============================================================================
 
-// 1. RUTAS DE ARCHIVOS
 r.get('/files/available', auth(), async (req, res) => {
   try {
     const userId = req.user.id;
@@ -102,9 +98,8 @@ r.get('/files/my-downloads', auth(), async (req, res) => {
   }
 });
 
-// ✅ RUTA MODIFICADA PARA ACEPTAR TOKEN POR HEADERS Y QUERY PARAM
 r.get('/files/:fileId/download', (req, res, next) => {
-  // ✅ ACEPTAR TOKEN POR QUERY PARAMETER COMO FALLBACK
+
   const tokenFromQuery = req.query.token;
   if (tokenFromQuery && !req.headers.authorization) {
     console.log('🔐 Usando token desde query parameter');
@@ -127,7 +122,6 @@ r.get('/files/:fileId/download', (req, res, next) => {
       authSource: req.query.token ? 'query' : 'header'
     });
 
-    // Buscar en TODOS los cursos que contengan este archivo
     const courses = await Course.find({
       'contents._id': fileId
     });
@@ -148,11 +142,11 @@ r.get('/files/:fileId/download', (req, res, next) => {
     }
 
     if (!targetContent) {
-      console.log("❌ Archivo no encontrado en BD:", fileId);
+      console.log(" Archivo no encontrado en BD:", fileId);
       return res.status(404).json({ message: 'Archivo no encontrado' });
     }
 
-    // ✅ VERIFICACIÓN MEJORADA DE PERMISOS
+    
     const isEnrolled = await Enrollment.findOne({
       courseId: targetCourse._id,
       userId: userId
@@ -164,11 +158,10 @@ r.get('/files/:fileId/download', (req, res, next) => {
     );
     const isAdmin = req.user.role === 'admin';
 
-    // ✅ LÓGICA MEJORADA: Permitir acceso si el curso está publicado O el usuario tiene permisos
     const hasAccess = targetCourse.isPublished || isOwner || isInstructor || isAdmin || isEnrolled;
     
     if (!hasAccess) {
-      console.log("❌ Sin permisos para descargar");
+      console.log(" Sin permisos para descargar");
       return res.status(403).json({ message: 'No tienes permisos para descargar este archivo' });
     }
 
@@ -183,10 +176,8 @@ r.get('/files/:fileId/download', (req, res, next) => {
 
     console.log("✅ Enviando archivo:", targetContent.title);
     
-    // ✅ HEADERS MEJORADOS para descarga
     const filename = encodeURIComponent(targetContent.fileName || targetContent.title);
     
-    // Determinar Content-Type basado en extensión
     const ext = path.extname(targetContent.fileName || '').toLowerCase();
     const mimeTypes = {
       '.pdf': 'application/pdf',
@@ -209,7 +200,6 @@ r.get('/files/:fileId/download', (req, res, next) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'no-cache');
 
-    // ✅ ENVIAR ARCHIVO CORRECTAMENTE
     const fileStream = fs.createReadStream(filePath);
     
     fileStream.on('error', (error) => {
@@ -291,7 +281,6 @@ r.get('/instructor/stats', auth('teacher'), async (req, res) => {
     const userId = req.user.id;
     console.log(`📊 Cargando estadísticas para instructor: ${userId}`);
     
-    // ✅ CORREGIDO: Buscar cursos del instructor de forma segura
     const myCourses = await Course.find({ 
       'owner._id': userId 
     });
@@ -300,30 +289,27 @@ r.get('/instructor/stats', auth('teacher'), async (req, res) => {
     
     const courseIds = myCourses.map(course => course._id);
     
-    // ✅ CORREGIDO: Buscar inscripciones de forma segura
     const enrollments = await Enrollment.find({ 
       courseId: { $in: courseIds } 
     });
     
     console.log(`👥 Inscripciones encontradas: ${enrollments.length}`);
     
-    // ✅ CORREGIDO: Calcular estudiantes por curso de forma segura
     const studentsByCourse = {};
     enrollments.forEach(enrollment => {
-      // ✅ VERIFICAR SI courseId EXISTE ANTES DE toString()
+   
       const courseId = enrollment.courseId ? enrollment.courseId.toString() : null;
       if (courseId) {
         if (!studentsByCourse[courseId]) {
           studentsByCourse[courseId] = new Set();
         }
-        // ✅ VERIFICAR SI userId EXISTE ANTES DE toString()
+  
         if (enrollment.userId) {
           studentsByCourse[courseId].add(enrollment.userId.toString());
         }
       }
     });
     
-    // ✅ CORREGIDO: Procesar cursos con manejo de errores
     const coursesWithStats = myCourses.map(course => {
       const courseId = course._id ? course._id.toString() : null;
       const studentCount = courseId && studentsByCourse[courseId] ? studentsByCourse[courseId].size : 0;
@@ -334,7 +320,6 @@ r.get('/instructor/stats', auth('teacher'), async (req, res) => {
       };
     });
     
-    // ✅ CORREGIDO: Calcular estudiantes únicos de forma segura
     const uniqueStudents = new Set();
     enrollments.forEach(enrollment => {
       if (enrollment.userId) {
@@ -367,24 +352,21 @@ r.get('/instructor/my-courses', auth(), async (req, res) => {
   try {
     const instructorId = req.user.id;
     
-    console.log(`👨‍🏫 Buscando cursos del instructor: ${instructorId}`);
+    console.log(` Buscando cursos del instructor: ${instructorId}`);
     
-    // Buscar cursos donde el usuario sea el propietario
     const courses = await Course.find({ 
       'owner._id': instructorId 
     })
     .sort({ createdAt: -1 });
 
-    console.log(`📚 Encontrados ${courses.length} cursos del instructor`);
+    console.log(` Encontrados ${courses.length} cursos del instructor`);
 
-    // Obtener estadísticas para cada curso
     const coursesWithStats = await Promise.all(
       courses.map(async (course) => {
         try {
           const enrollments = await Enrollment.find({ courseId: course._id });
           const studentCount = enrollments.length;
           
-          // Calcular progreso promedio del curso
           let avgProgress = 0;
           if (studentCount > 0) {
             const totalProgress = enrollments.reduce((sum, enrollment) => 
@@ -593,6 +575,30 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
     const notStartedStudents = studentsProgress.filter(s => s.progress === 0).length;
     const completionRate = totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
 
+    // ✅ ESTRUCTURA BASE DE ANALYTICS
+    const basicAnalytics = {
+      course: {
+        _id: course._id,
+        title: course.title,
+        description: course.description || '',
+        totalContents: course.contents?.length || 0
+      },
+      summary: {
+        totalStudents: totalStudents,
+        averageProgress: avgProgress,
+        completedStudents: completedStudents,
+        activeStudents: activeStudents,
+        notStartedStudents: notStartedStudents,
+        completionRate: completionRate
+      },
+      students: studentsProgress.sort((a, b) => b.progress - a.progress)
+    };
+
+    // ✅ APLICAR DECORATORS INTELIGENTES
+    console.log("🤖 Aplicando análisis inteligente...");
+    const enhancedAnalytics = enhanceAnalyticsWithAI(basicAnalytics);
+    const insights = enhancedAnalytics.getInsights();
+
     const response = {
       courseId: course._id,
       courseTitle: course.title,
@@ -604,10 +610,14 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       activeStudents: activeStudents,
       notStartedStudents: notStartedStudents,
       completionRate: completionRate,
-      students: studentsProgress.sort((a, b) => b.progress - a.progress)
+      students: studentsProgress.sort((a, b) => b.progress - a.progress),
+      // ✅ NUEVO: Insights inteligentes
+      insights: insights,
+      generatedAt: new Date().toISOString(),
+      hasAIInsights: insights.length > 0
     };
 
-    console.log(`✅ Analytics generados: ${studentsProgress.length} estudiantes válidos de ${enrollments.length} inscripciones`);
+    console.log(`✅ Analytics generados: ${studentsProgress.length} estudiantes, ${insights.length} insights inteligentes`);
     res.json(response);
 
   } catch (error) {
