@@ -76,9 +76,6 @@ export default function CourseLearning() {
       completedContentIds: [...(prev?.completedContentIds || []), contentId]
     }));
     
-    // ✅ ACTUALIZAR EL BOTÓN ESPECÍFICO (opcional - el estado ya lo hace)
-    // El botón debería cambiar automáticamente porque isContentCompleted() usa enrollment
-    
   } catch (error) {
     console.error('❌ Error marcando contenido como completado:', error);
     

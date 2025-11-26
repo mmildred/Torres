@@ -818,37 +818,29 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
     const { courseId } = req.params;
     const userId = req.user.id.toString();
 
-    console.log('📥 Solicitud de inscripción:', { 
-      courseId, 
-      userId,
-      userObject: req.user 
-    });
+    console.log('📥 Solicitud de inscripción:', { courseId, userId });
 
-    // Validar ID de curso
+    // Validaciones básicas
     if (!courseId || !courseId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ 
-        message: 'ID de curso inválido',
-        receivedId: courseId 
-      });
+      return res.status(400).json({ message: 'ID de curso inválido' });
     }
 
-    // Buscar el curso
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    // Verificar si el curso está publicado
     if (!course.isPublished) {
-      return res.status(403).json({ 
-        message: 'Este curso no está disponible para inscripción' 
-      });
+      return res.status(403).json({ message: 'Curso no disponible' });
     }
 
-    // Verificar si ya está inscrito
-    const existingEnrollment = await Enrollment.findOne({ 
-      courseId: courseId, 
-      userId: userId 
+    // ✅ Buscar inscripción existente
+    const existingEnrollment = await Enrollment.findOne({
+      courseId: courseId,
+      $or: [
+        { userId: userId },
+        { studentId: userId }
+      ]
     });
 
     if (existingEnrollment) {
@@ -859,15 +851,16 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
       });
     }
 
-    // Crear nueva inscripción
+    // ✅ Crear nueva inscripción
     const newEnrollment = await Enrollment.create({
       courseId: courseId,
       userId: userId,
+      studentId: userId, // Ambos campos con el mismo valor
       completedContentIds: [],
       submissions: [],
+      lastAccessAt: new Date(),
       createdAt: new Date(),
-      updatedAt: new Date(),
-      lastAccessAt: new Date()
+      updatedAt: new Date()
     });
 
     console.log('✅ Inscripción exitosa:', newEnrollment._id);
@@ -886,7 +879,6 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
   } catch (error) {
     console.error('❌ Error en inscripción:', error);
     
-    // Manejo específico de errores
     if (error.name === 'ValidationError') {
       return res.status(400).json({ 
         message: 'Error de validación',
@@ -895,8 +887,12 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
     }
 
     if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'ID de curso inválido' });
+    }
+
+    if (error.code === 11000) {
       return res.status(400).json({ 
-        message: 'ID de curso inválido' 
+        message: 'Ya estás inscrito en este curso (error de duplicado)'
       });
     }
 
