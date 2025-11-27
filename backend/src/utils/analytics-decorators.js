@@ -1,4 +1,4 @@
-// Interface base
+//Interface base
 class AnalyticsBase {
   constructor(analyticsData) {
     this.analyticsData = analyticsData;
@@ -13,7 +13,7 @@ class AnalyticsBase {
   }
 }
 
-// Decorator Base
+//Decorator Base
 class AnalyticsDecorator extends AnalyticsBase {
   constructor(wrapped) {
     super(wrapped.analyticsData);
@@ -29,7 +29,7 @@ class AnalyticsDecorator extends AnalyticsBase {
   }
 }
 
-// 🔮 1. Decorator de Análisis Predictivo
+// 1. Decorator de Análisis Predictivo
 class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
   getInsights() {
     const baseInsights = super.getInsights();
@@ -43,14 +43,14 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
     const insights = [];
     const { students, summary, course } = data;
 
-    // 🔮 Predicción de tasa de finalización
+    //Predicción de tasa de finalización
     if (students.length >= 3) {
       const completionTrend = this.calculateCompletionTrend(students);
       const predictedCompletion = Math.max(0, Math.min(100, summary.completionRate + completionTrend));
       
       insights.push({
         type: 'prediction',
-        title: '📈 Proyección de Finalización',
+        title: 'Proyección de Finalización',
         message: `Basado en el progreso actual, se proyecta una tasa de finalización del ${predictedCompletion}%`,
         confidence: this.calculateConfidence(students),
         trend: completionTrend > 0 ? 'up' : 'down',
@@ -58,12 +58,11 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
       });
     }
 
-    // 🔮 Identificación de estudiantes en riesgo
     const atRiskStudents = this.identifyAtRiskStudents(students);
     if (atRiskStudents.length > 0) {
       insights.push({
         type: 'risk',
-        title: '🚨 Estudiantes en Riesgo',
+        title: 'Estudiantes en Riesgo',
         message: `${atRiskStudents.length} estudiante(s) muestran signos de abandono`,
         students: atRiskStudents,
         recommendation: 'Considera contactarlos con recursos adicionales',
@@ -71,12 +70,11 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
       });
     }
 
-    // 🔮 Detección de contenido problemático
     const problematicContent = this.identifyProblematicContent(students);
     if (problematicContent.length > 0) {
       insights.push({
         type: 'content-risk',
-        title: '⚠️ Contenido Problemático',
+        title: 'Contenido Problemático',
         message: `Se detectaron puntos de dificultad en el curso`,
         problematicAreas: problematicContent,
         priority: 'medium'
@@ -141,7 +139,7 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
   }
 }
 
-// 📊 2. Decorator de Análisis Comparativo
+//2. Decorator de Análisis Comparativo
 class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
   getInsights() {
     const baseInsights = super.getInsights();
@@ -157,14 +155,14 @@ class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
 
     if (students.length === 0) return insights;
 
-    // 📊 Benchmark contra estándares
+    //Benchmark contra estándares
     const industryBenchmark = 65;
     const completionDiff = summary.completionRate - industryBenchmark;
     
     if (completionDiff > 15) {
       insights.push({
         type: 'achievement',
-        title: '🏆 ¡Excelente Rendimiento!',
+        title: '¡Excelente Rendimiento!',
         message: `Tu tasa de finalización (${summary.completionRate}%) supera por ${completionDiff}% el promedio de la industria`,
         benchmark: industryBenchmark,
         difference: completionDiff
@@ -172,23 +170,23 @@ class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
     } else if (completionDiff < -10) {
       insights.push({
         type: 'opportunity',
-        title: '💪 Oportunidad de Mejora',
+        title: 'Oportunidad de Mejora',
         message: `Tu tasa de finalización está ${Math.abs(completionDiff)}% por debajo del promedio de la industria`,
         benchmark: industryBenchmark,
         priority: 'medium'
       });
     }
 
-    // 📊 Análisis de segmentación
+    //Análisis de segmentación
     const segments = this.analyzeStudentSegments(students);
     insights.push({
       type: 'segmentation',
-      title: '🎯 Perfil de la Audiencia',
+      title: 'Perfil de la Audiencia',
       message: this.generateSegmentationMessage(segments, students.length),
       segments: segments
     });
 
-    // 📊 Análisis de ritmo de aprendizaje
+    //Análisis de ritmo de aprendizaje
     const paceAnalysis = this.analyzeLearningPace(students);
     if (paceAnalysis) {
       insights.push(paceAnalysis);
@@ -243,7 +241,7 @@ class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
     if (avgProgress < 25) {
       return {
         type: 'pace',
-        title: '🐌 Ritmo de Aprendizaje Lento',
+        title: 'Ritmo de Aprendizaje Lento',
         message: 'El progreso promedio es bajo. Considera revisar la dificultad del contenido',
         averageProgress: Math.round(avgProgress),
         priority: 'medium'
@@ -251,7 +249,7 @@ class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
     } else if (avgProgress > 75) {
       return {
         type: 'pace',
-        title: '⚡ Ritmo Acelerado',
+        title: 'Ritmo Acelerado',
         message: 'Los estudiantes avanzan rápidamente. ¡Buen trabajo!',
         averageProgress: Math.round(avgProgress)
       };
@@ -261,7 +259,7 @@ class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
   }
 }
 
-// ⚡ 3. Decorator de Recomendaciones Inteligentes
+//3. Decorator de Recomendaciones Inteligentes
 class RecommendationDecorator extends AnalyticsDecorator {
   getInsights() {
     const baseInsights = super.getInsights();
@@ -275,11 +273,11 @@ class RecommendationDecorator extends AnalyticsDecorator {
     const recommendations = [];
     const { students, summary, course } = data;
 
-    // ⚡ Recomendación basada en tasa de finalización
+    //Recomendación basada en tasa de finalización
     if (summary.completionRate < 40 && students.length > 5) {
       recommendations.push({
         type: 'recommendation',
-        title: '💡 Estrategia de Retención',
+        title: 'Estrategia de Retención',
         message: 'La tasa de finalización sugiere oportunidades para mejorar la retención',
         actions: [
           'Implementar recordatorios automáticos semanales',
@@ -291,7 +289,7 @@ class RecommendationDecorator extends AnalyticsDecorator {
       });
     }
 
-    // ⚡ Recomendación basada en estudiantes inactivos
+    //Recomendación basada en estudiantes inactivos
     const inactiveStudents = students.filter(s => {
       const daysInactive = this.getDaysSinceLastActivity(s.lastActivity);
       return daysInactive > 14 && s.progress < 100;
@@ -300,7 +298,7 @@ class RecommendationDecorator extends AnalyticsDecorator {
     if (inactiveStudents.length > 0) {
       recommendations.push({
         type: 'recommendation',
-        title: '🔄 Campaña de Reactivación',
+        title: 'Campaña de Reactivación',
         message: `${inactiveStudents.length} estudiante(s) inactivo(s) detectados`,
         actions: [
           'Enviar email personalizado de reactivación',
@@ -313,12 +311,12 @@ class RecommendationDecorator extends AnalyticsDecorator {
       });
     }
 
-    // ⚡ Recomendación basada en distribución de progreso
+    //Recomendación basada en distribución de progreso
     const segments = this.analyzeStudentSegments(students);
     if (segments.notStarted > students.length * 0.4) {
       recommendations.push({
         type: 'recommendation',
-        title: '🚀 Estrategia de Onboarding',
+        title: 'Estrategia de Onboarding',
         message: 'Muchos estudiantes no han comenzado. Mejora el proceso de inicio',
         actions: [
           'Crear un tour guiado del curso',
@@ -330,11 +328,11 @@ class RecommendationDecorator extends AnalyticsDecorator {
       });
     }
 
-    // ⚡ Recomendación de contenido
+    //Recomendación de contenido
     if (course.totalContents < 8) {
       recommendations.push({
         type: 'recommendation',
-        title: '📚 Expansión de Contenido',
+        title: 'Expansión de Contenido',
         message: 'El curso tiene pocos módulos. Considera expandir el contenido',
         actions: [
           'Agregar estudios de caso prácticos',

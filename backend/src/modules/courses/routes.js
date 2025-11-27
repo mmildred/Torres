@@ -21,7 +21,7 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 r.use((req, res, next) => {
   console.log(`📍 [${req.method}] ${req.originalUrl}`);
-  console.log('👤 User:', req.user?.id);
+  console.log(' User:', req.user?.id);
   next();
 });
 
@@ -102,12 +102,12 @@ r.get('/files/:fileId/download', (req, res, next) => {
 
   const tokenFromQuery = req.query.token;
   if (tokenFromQuery && !req.headers.authorization) {
-    console.log('🔐 Usando token desde query parameter');
+    console.log(' Usando token desde query parameter');
     req.headers.authorization = `Bearer ${tokenFromQuery}`;
   } else if (req.headers.authorization) {
-    console.log('🔐 Usando token desde headers');
+    console.log(' Usando token desde headers');
   } else {
-    console.log('⚠️ No se encontró token en headers ni query');
+    console.log(' No se encontró token en headers ni query');
   }
   
   next();
@@ -116,7 +116,7 @@ r.get('/files/:fileId/download', (req, res, next) => {
     const { fileId } = req.params;
     const userId = req.user.id;
 
-    console.log("📥 Solicitud de descarga:", { 
+    console.log(" Solicitud de descarga:", { 
       fileId, 
       userId,
       authSource: req.query.token ? 'query' : 'header'
@@ -167,14 +167,14 @@ r.get('/files/:fileId/download', (req, res, next) => {
 
     const filePath = path.join(uploadDir, targetContent.filePath);
     
-    console.log("🔍 Buscando archivo en:", filePath);
+    console.log(" Buscando archivo en:", filePath);
     
     if (!fs.existsSync(filePath)) {
-      console.log("❌ Archivo físico no encontrado:", filePath);
+      console.log("Archivo físico no encontrado:", filePath);
       return res.status(404).json({ message: 'Archivo físico no encontrado' });
     }
 
-    console.log("✅ Enviando archivo:", targetContent.title);
+    console.log(" Enviando archivo:", targetContent.title);
     
     const filename = encodeURIComponent(targetContent.fileName || targetContent.title);
     
@@ -203,7 +203,7 @@ r.get('/files/:fileId/download', (req, res, next) => {
     const fileStream = fs.createReadStream(filePath);
     
     fileStream.on('error', (error) => {
-      console.error('❌ Error leyendo archivo:', error);
+      console.error(' Error leyendo archivo:', error);
       if (!res.headersSent) {
         res.status(500).json({ message: 'Error al leer archivo' });
       }
@@ -212,11 +212,11 @@ r.get('/files/:fileId/download', (req, res, next) => {
     fileStream.pipe(res);
     
     res.on('finish', () => {
-      console.log('✅ Archivo enviado exitosamente');
+      console.log(' Archivo enviado exitosamente');
     });
 
   } catch (error) {
-    console.error('❌ Error al descargar archivo:', error);
+    console.error(' Error al descargar archivo:', error);
     if (!res.headersSent) {
       res.status(500).json({ 
         message: 'Error al descargar archivo', 
@@ -230,18 +230,18 @@ r.get('/files/:fileId/download', (req, res, next) => {
 r.get('/my-courses', auth(), async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log(`🔍 Buscando cursos para usuario: ${userId}`);
+    console.log(` Buscando cursos para usuario: ${userId}`);
 
     const enrollments = await Enrollment.find({ userId: userId });
     const courseIds = enrollments.map(enrollment => enrollment.courseId);
-    console.log(`📋 IDs de cursos inscritos: ${courseIds.length}`);
+    console.log(` IDs de cursos inscritos: ${courseIds.length}`);
     
     const courses = await Course.find({ 
       _id: { $in: courseIds },
       isPublished: true 
     });
     
-    console.log(`🎯 Cursos encontrados: ${courses.length}`);
+    console.log(` Cursos encontrados: ${courses.length}`);
     
     const coursesWithProgress = await Promise.all(
       courses.map(async (course) => {
@@ -264,10 +264,10 @@ r.get('/my-courses', auth(), async (req, res) => {
       })
     );
     
-    console.log(`✅ Enviando ${coursesWithProgress.length} cursos al frontend`);
+    console.log(` Enviando ${coursesWithProgress.length} cursos al frontend`);
     res.json(coursesWithProgress);
   } catch (error) {
-    console.error('❌ Error obteniendo mis cursos:', error);
+    console.error(' Error obteniendo mis cursos:', error);
     res.status(500).json({ 
       message: 'Error del servidor',
       error: error.message 
@@ -279,13 +279,13 @@ r.get('/my-courses', auth(), async (req, res) => {
 r.get('/instructor/stats', auth('teacher'), async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log(`📊 Cargando estadísticas para instructor: ${userId}`);
+    console.log(` Cargando estadísticas para instructor: ${userId}`);
     
     const myCourses = await Course.find({ 
       'owner._id': userId 
     });
     
-    console.log(`📚 Cursos encontrados: ${myCourses.length}`);
+    console.log(` Cursos encontrados: ${myCourses.length}`);
     
     const courseIds = myCourses.map(course => course._id);
     
@@ -293,7 +293,7 @@ r.get('/instructor/stats', auth('teacher'), async (req, res) => {
       courseId: { $in: courseIds } 
     });
     
-    console.log(`👥 Inscripciones encontradas: ${enrollments.length}`);
+    console.log(` Inscripciones encontradas: ${enrollments.length}`);
     
     const studentsByCourse = {};
     enrollments.forEach(enrollment => {
@@ -330,7 +330,7 @@ r.get('/instructor/stats', auth('teacher'), async (req, res) => {
     const totalStudents = uniqueStudents.size;
     const totalEnrollments = enrollments.length;
 
-    console.log(`✅ Estadísticas calculadas: ${coursesWithStats.length} cursos, ${totalStudents} estudiantes únicos`);
+    console.log(` Estadísticas calculadas: ${coursesWithStats.length} cursos, ${totalStudents} estudiantes únicos`);
     
     res.json({
       totalCourses: myCourses.length,
@@ -340,7 +340,7 @@ r.get('/instructor/stats', auth('teacher'), async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error obteniendo estadísticas de instructor:', error);
+    console.error(' Error obteniendo estadísticas de instructor:', error);
     res.status(500).json({ 
       message: 'Error del servidor al cargar estadísticas',
       error: error.message 
@@ -393,10 +393,10 @@ r.get('/instructor/my-courses', auth(), async (req, res) => {
       })
     );
 
-    console.log(`✅ Enviando ${coursesWithStats.length} cursos con estadísticas`);
+    console.log(` Enviando ${coursesWithStats.length} cursos con estadísticas`);
     res.json(coursesWithStats);
   } catch (error) {
-    console.error('❌ Error cargando cursos del instructor:', error);
+    console.error(' Error cargando cursos del instructor:', error);
     res.status(500).json({ 
       error: 'Error al cargar los cursos del instructor',
       details: error.message 
@@ -516,12 +516,11 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
     const enrollments = await Enrollment.find({ courseId: courseId });
     console.log(`👥 Inscripciones encontradas: ${enrollments.length}`);
 
-    // ✅ CORREGIDO: Buscar por AMBOS campos (studentId O userId)
     const userIds = enrollments.map(e => e.studentId || e.userId).filter(id => id);
-    console.log(`📋 IDs de usuario encontrados: ${userIds.length}`);
+    console.log(` IDs de usuario encontrados: ${userIds.length}`);
     
     const users = await User.find({ _id: { $in: userIds } });
-    console.log(`👤 Usuarios cargados: ${users.length}`);
+    console.log(` Usuarios cargados: ${users.length}`);
     
     const userMap = {};
     users.forEach(user => {
@@ -530,7 +529,7 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       }
     });
 
-    // ✅ CORREGIDO: Procesar estudiantes usando AMBOS campos
+    //Procesar estudiantes usando AMBOS campos
     const studentsProgress = enrollments.map((enrollment) => {
       // Usar studentId primero, si no existe usar userId
       const userIdentifier = enrollment.studentId || enrollment.userId;
@@ -539,7 +538,7 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       
       // Filtrar si no hay usuario válido
       if (!user) {
-        console.log(`👻 Inscripción sin usuario - Enrollment: ${enrollment._id}`);
+        console.log(`Inscripción sin usuario - Enrollment: ${enrollment._id}`);
         return null;
       }
       
@@ -575,7 +574,7 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
     const notStartedStudents = studentsProgress.filter(s => s.progress === 0).length;
     const completionRate = totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
 
-    // ✅ ESTRUCTURA BASE DE ANALYTICS
+    //ESTRUCTURA BASE DE ANALYTICS
     const basicAnalytics = {
       course: {
         _id: course._id,
@@ -594,8 +593,7 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       students: studentsProgress.sort((a, b) => b.progress - a.progress)
     };
 
-    // ✅ APLICAR DECORATORS INTELIGENTES
-    console.log("🤖 Aplicando análisis inteligente...");
+    console.log(" Aplicando análisis inteligente...");
     const enhancedAnalytics = enhanceAnalyticsWithAI(basicAnalytics);
     const insights = enhancedAnalytics.getInsights();
 
@@ -611,7 +609,7 @@ r.get('/:courseId/analytics', auth('teacher'), async (req, res) => {
       notStartedStudents: notStartedStudents,
       completionRate: completionRate,
       students: studentsProgress.sort((a, b) => b.progress - a.progress),
-      // ✅ NUEVO: Insights inteligentes
+      
       insights: insights,
       generatedAt: new Date().toISOString(),
       hasAIInsights: insights.length > 0
@@ -634,7 +632,7 @@ r.get('/:courseId/enrollments', auth('teacher'), async (req, res) => {
     const { courseId } = req.params;
     const userId = req.user.id;
 
-    console.log(`📋 Enrollments solicitados - Curso: ${courseId}, Usuario: ${userId}`);
+    console.log(`Enrollments solicitados - Curso: ${courseId}, Usuario: ${userId}`);
 
     const course = await Course.findById(courseId);
     if (!course) {
@@ -652,14 +650,14 @@ r.get('/:courseId/enrollments', auth('teacher'), async (req, res) => {
     }
 
     const enrollments = await Enrollment.find({ courseId: courseId });
-    console.log(`📋 Inscripciones encontradas: ${enrollments.length}`);
+    console.log(` Inscripciones encontradas: ${enrollments.length}`);
 
-    // ✅ CORREGIDO: Buscar por AMBOS campos (studentId O userId)
+    // Buscar por AMBOS campos (studentId O userId)
     const userIds = enrollments.map(e => e.studentId || e.userId).filter(id => id);
-    console.log(`👤 IDs de usuario encontrados: ${userIds.length}`);
+    console.log(`IDs de usuario encontrados: ${userIds.length}`);
     
     const users = await User.find({ _id: { $in: userIds } });
-    console.log(`👤 Usuarios cargados: ${users.length}`);
+    console.log(` Usuarios cargados: ${users.length}`);
     
     const userMap = {};
     users.forEach(user => {
@@ -675,7 +673,7 @@ r.get('/:courseId/enrollments', auth('teacher'), async (req, res) => {
       const user = userId ? userMap[userId] : null;
     
       if (!user) {
-        console.log(`👻 Enrollment sin usuario - Enrollment: ${enrollment._id}`);
+        console.log(` Enrollment sin usuario - Enrollment: ${enrollment._id}`);
         return null;
       }
       
@@ -699,11 +697,11 @@ r.get('/:courseId/enrollments', auth('teacher'), async (req, res) => {
       };
     }).filter(enrollment => enrollment !== null);
 
-    console.log(`✅ Enrollments enriquecidos: ${enrichedEnrollments.length} válidos de ${enrollments.length} inscripciones`);
+    console.log(` Enrollments enriquecidos: ${enrichedEnrollments.length} válidos de ${enrollments.length} inscripciones`);
     res.json(enrichedEnrollments);
 
   } catch (error) {
-    console.error('❌ ERROR obteniendo enrollments:', error);
+    console.error(' ERROR obteniendo enrollments:', error);
     res.status(500).json({ 
       message: 'Error interno del servidor',
       error: error.message
@@ -795,7 +793,7 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
   }
 });
 
-// RUTA ARCHIVOS SUBIDOS
+// RUTA ARCHIVOS
 r.get('/uploads/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
@@ -812,15 +810,13 @@ r.get('/uploads/:filename', async (req, res) => {
   }
 });
 
-// En la ruta de inscripción - CORREGIDO
 r.post('/:courseId/enroll', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.user.id.toString();
 
-    console.log('📥 Solicitud de inscripción:', { courseId, userId });
+    console.log(' Solicitud de inscripción:', { courseId, userId });
 
-    // Validaciones básicas
     if (!courseId || !courseId.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ message: 'ID de curso inválido' });
     }
@@ -834,7 +830,6 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
       return res.status(403).json({ message: 'Curso no disponible' });
     }
 
-    // ✅ Buscar inscripción existente
     const existingEnrollment = await Enrollment.findOne({
       courseId: courseId,
       $or: [
@@ -844,18 +839,17 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
     });
 
     if (existingEnrollment) {
-      console.log('⚠️ Usuario ya inscrito');
+      console.log('Usuario ya inscrito');
       return res.status(400).json({ 
         message: 'Ya estás inscrito en este curso',
         enrollment: existingEnrollment 
       });
     }
 
-    // ✅ Crear nueva inscripción
     const newEnrollment = await Enrollment.create({
       courseId: courseId,
       userId: userId,
-      studentId: userId, // Ambos campos con el mismo valor
+      studentId: userId, 
       completedContentIds: [],
       submissions: [],
       lastAccessAt: new Date(),
@@ -863,7 +857,7 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
       updatedAt: new Date()
     });
 
-    console.log('✅ Inscripción exitosa:', newEnrollment._id);
+    console.log('Inscripción exitosa:', newEnrollment._id);
 
     res.status(201).json({
       success: true,
@@ -877,7 +871,7 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error en inscripción:', error);
+    console.error('Error en inscripción:', error);
     
     if (error.name === 'ValidationError') {
       return res.status(400).json({ 
