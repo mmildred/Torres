@@ -18,7 +18,7 @@ import CourseDetail from './pages/CourseDetail.jsx';
 import CourseLearning from './pages/CourseLearning.jsx';
 import MyCourses from './pages/MyCourses.jsx'
 import ResourceLibrary from './pages/ResourseLibrary.jsx';
-import Analytics from './pages/Analytics.jsx'; // ✅ IMPORTAR ANALYTICS
+import Analytics from './pages/Analytics.jsx'; 
 
 console.log('🚀 Inicializando aplicación...');
 

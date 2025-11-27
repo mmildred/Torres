@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../api";
 import { isAuthenticated } from "../auth";
 import InsightsPanel from "../pages/InsightsPanel";
+import { enhanceAnalyticsWithAI } from "./analytics-decorator";
 import "./Analytics.css";
 
 export default function Analytics() {
@@ -26,98 +27,112 @@ export default function Analytics() {
       setLoading(true);
       setError(null);
       
-      console.log(" Cargando analytics para curso:", courseId);
+      console.log("📊 Cargando analytics para curso:", courseId);
 
-      // Opción 1: Si tienes un endpoint específico de analytics
+      // ✅ USAR EL ENDPOINT CORRECTO QUE SÍ EXISTE
       try {
-        const analyticsResponse = await api.get(`courses/${courseId}/analytics`);
-        const processedData = processApiAnalytics(analyticsResponse.data);
+        console.log("🔄 Llamando a endpoint /analytics...");
+        const analyticsRes = await api.get(`/courses/${courseId}/analytics`);
+        console.log("✅ Respuesta de analytics:", analyticsRes.data);
         
-        console.log(" Analytics cargados desde endpoint específico");
-        console.log(" DEBUG - Estructura completa de analytics:", processedData);
-        console.log(" DEBUG - Students array:", processedData?.students);
-        console.log(" DEBUG - Primer student:", processedData?.students?.[0]);
-        console.log(" DEBUG - Keys disponibles:", processedData?.students?.map(s => s ? Object.keys(s) : 'null'));
+        // Procesar los datos del endpoint que SÍ existe
+        const processedAnalytics = processApiAnalytics(analyticsRes.data);
         
-        setAnalytics(processedData);
-        return;
-      } catch (err) {
-        console.log("⚠️ Endpoint de analytics falló, usando método alternativo:", err.message);
-      }
-
-      // Opción 2: Cargar solo el curso (sin enrollments si fallan)
-      try {
-        const courseRes = await api.get(`courses/${courseId}`);
-        const course = courseRes.data;
-
-        console.log(" Curso cargado:", course.title);
-
-        // Intentar cargar enrollments, pero si falla, usar array vacío
-        let enrollments = [];
-        try {
-          const enrollmentsRes = await api.get(`courses/${courseId}/enrollments`);
-          enrollments = enrollmentsRes.data;
-          console.log(" Inscripciones cargadas:", enrollments.length);
-        } catch (enrollError) {
-          console.warn(" No se pudieron cargar las inscripciones:", enrollError.message);
-          enrollments = [];
-        }
-
-        // Procesar datos para analytics
-        const processedAnalytics = buildAnalyticsFromData(course, enrollments);
+        // Aplicar decorators de IA
+        const enhancedAnalytics = enhanceAnalyticsWithAI(processedAnalytics);
         
-        //DEBUG PARA MÉTODO ALTERNATIVO
-        console.log(" DEBUG - Analytics método alternativo:", processedAnalytics);
+        console.log("🤖 Insights generados:", enhancedAnalytics.getInsights());
         
-        setAnalytics(processedAnalytics);
-
-      } catch (courseError) {
-        console.error(" Error cargando curso:", courseError);
-        throw courseError;
+        setAnalytics({
+          ...processedAnalytics,
+          insights: enhancedAnalytics.getInsights()
+        });
+        
+      } catch (analyticsError) {
+        console.error("❌ Error con endpoint analytics:", analyticsError);
+        
+        // FALLBACK: Método alternativo si el endpoint falla
+        await loadAnalyticsFallback();
       }
 
     } catch (error) {
-      console.error(" Error cargando analytics:", error);
+      console.error("❌ Error cargando analytics:", error);
       handleError(error);
     } finally {
       setLoading(false);
     }
   };
 
-const processApiAnalytics = (data) => {
-  console.log("🔍 Datos crudos del backend:", data);
-  
-  return {
-    course: {
-      _id: data.courseId || courseId,
-      title: data.courseTitle || "Curso",
-      description: data.courseDescription || "",
-      totalContents: data.totalContents || 0
-    },
-    summary: {
-      totalStudents: data.totalStudents || 0,
-      avgProgress: Math.round(data.averageProgress || 0),
-      completedStudents: data.completedStudents || 0,
-      activeStudents: data.activeStudents || 0,
-      notStartedStudents: data.notStartedStudents || 0,
-      completionRate: Math.round(data.completionRate || 0)
-    },
-    students: (data.students || []).map((student, index) => ({
-      studentId: student.studentId || student._id || `student-${index}`,
-      name: student.name || student.fullName || "Sin nombre",
-      email: student.email || "Sin email",
-      progress: Math.round(student.progress || 0),
-      completedContents: student.completedContents || 0,
-      lastActivity: student.lastActivity || student.updatedAt,
-      status: getProgressStatus(student.progress || 0)
-    })),
-    
-    insights: data.insights || []
+  // Método alternativo si el endpoint principal falla
+  const loadAnalyticsFallback = async () => {
+    try {
+      console.log("🔄 Usando método alternativo...");
+      
+      // 1. Cargar el curso
+      const courseRes = await api.get(`/courses/${courseId}`);
+      const course = courseRes.data;
+      
+      console.log("✅ Curso cargado:", course.title);
+
+      // 2. Intentar cargar enrollments (este endpoint también existe en tu backend)
+      let enrollments = [];
+      try {
+        const enrollmentsRes = await api.get(`/courses/${courseId}/enrollments`);
+        enrollments = enrollmentsRes.data;
+        console.log("✅ Enrollments cargados:", enrollments.length);
+      } catch (enrollError) {
+        console.warn("❌ No se pudieron cargar enrollments:", enrollError.message);
+        enrollments = [];
+      }
+
+      // 3. Construir analytics manualmente
+      const processedAnalytics = buildAnalyticsFromData(course, enrollments);
+      const enhancedAnalytics = enhanceAnalyticsWithAI(processedAnalytics);
+      
+      console.log("📈 Analytics construidos manualmente:", processedAnalytics.summary);
+      
+      setAnalytics({
+        ...processedAnalytics,
+        insights: enhancedAnalytics.getInsights()
+      });
+
+    } catch (fallbackError) {
+      console.error("❌ Error en método alternativo:", fallbackError);
+      throw fallbackError;
+    }
   };
-};
+
+  const processApiAnalytics = (data) => {
+    console.log("🔍 Datos crudos del backend:", data);
+    
+    return {
+      course: {
+        _id: data.courseId || data.course?._id || courseId,
+        title: data.courseTitle || data.course?.title || "Curso",
+        description: data.courseDescription || data.course?.description || "",
+        totalContents: data.totalContents || data.course?.totalContents || 0
+      },
+      summary: {
+        totalStudents: data.totalStudents || data.summary?.totalStudents || 0,
+        avgProgress: Math.round(data.averageProgress || data.summary?.averageProgress || 0),
+        completedStudents: data.completedStudents || data.summary?.completedStudents || 0,
+        activeStudents: data.activeStudents || data.summary?.activeStudents || 0,
+        notStartedStudents: data.notStartedStudents || data.summary?.notStartedStudents || 0,
+        completionRate: Math.round(data.completionRate || data.summary?.completionRate || 0)
+      },
+      students: (data.students || []).map((student, index) => ({
+        studentId: student.studentId || student._id || `student-${index}`,
+        name: student.name || student.fullName || "Sin nombre",
+        email: student.email || "Sin email",
+        progress: Math.round(student.progress || 0),
+        completedContents: student.completedContents || 0,
+        lastActivity: student.lastActivity || student.updatedAt,
+        status: getProgressStatus(student.progress || 0)
+      }))
+    };
+  };
 
   const buildAnalyticsFromData = (course, enrollments) => {
-
     const students = processEnrollments(enrollments, course);
     const summary = calculateSummary(students);
 
@@ -148,7 +163,6 @@ const processApiAnalytics = (data) => {
                        Math.round((progress / 100) * totalContents);
 
       return {
-
         studentId: student._id || student.id || enrollment._id || `enrollment-${index}`,
         name: student.name || student.fullName || student.username || "Estudiante",
         email: student.email || "Sin email",
@@ -161,7 +175,6 @@ const processApiAnalytics = (data) => {
   };
 
   const getTotalContents = (course) => {
-
     if (course.totalContents) return course.totalContents;
     if (course.modules && Array.isArray(course.modules)) return course.modules.length;
     if (course.lessons && Array.isArray(course.lessons)) return course.lessons.length;
@@ -377,7 +390,7 @@ const processApiAnalytics = (data) => {
       </div>
 
       {/* Insights Inteligentes */}
-        <InsightsPanel insights={analytics.insights} />
+      <InsightsPanel insights={analytics.insights || []} />
 
       {/* Acciones */}
       <div className="actions-section">

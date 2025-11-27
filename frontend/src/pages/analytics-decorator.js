@@ -50,7 +50,7 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
       
       insights.push({
         type: 'prediction',
-        title: '📈 Proyección de Finalización',
+        title: ' Proyección de Finalización',
         message: `Basado en el progreso actual, se proyecta una tasa de finalización del ${predictedCompletion}%`,
         confidence: this.calculateConfidence(students),
         trend: completionTrend > 0 ? 'up' : 'down',
@@ -62,7 +62,7 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
     if (atRiskStudents.length > 0) {
       insights.push({
         type: 'risk',
-        title: '⚠️ Estudiantes en Riesgo',
+        title: ' Estudiantes en Riesgo',
         message: `${atRiskStudents.length} estudiante(s) muestran signos de posible abandono`,
         students: atRiskStudents,
         recommendation: 'Considera contactarlos para ofrecer apoyo adicional',
@@ -74,7 +74,7 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
     if (problematicContent.length > 0) {
       insights.push({
         type: 'content-risk',
-        title: '🎯 Contenido que Requiere Atención',
+        title: ' Contenido que Requiere Atención',
         message: `Se detectaron posibles puntos de dificultad en el curso`,
         problematicAreas: problematicContent,
         priority: 'medium'
@@ -159,12 +159,11 @@ class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
     const segments = this.analyzeStudentSegments(students);
     insights.push({
       type: 'segmentation',
-      title: '👥 Perfil de Estudiantes',
+      title: ' Perfil de Estudiantes',
       message: this.generateSegmentationMessage(segments, students.length),
       segments: segments
     });
 
-    // Análisis de ritmo de aprendizaje
     const paceAnalysis = this.analyzeLearningPace(students);
     if (paceAnalysis) {
       insights.push(paceAnalysis);
@@ -255,7 +254,7 @@ class RecommendationDecorator extends AnalyticsDecorator {
     if (summary.completionRate < 40 && students.length > 5) {
       recommendations.push({
         type: 'recommendation',
-        title: '🔄 Estrategia de Retención',
+        title: ' Estrategia de Retención',
         message: 'La tasa de finalización sugiere oportunidades para mejorar la retención',
         actions: [
           'Implementar recordatorios automáticos semanales',
@@ -276,7 +275,7 @@ class RecommendationDecorator extends AnalyticsDecorator {
     if (inactiveStudents.length > 0) {
       recommendations.push({
         type: 'recommendation',
-        title: '📧 Campaña de Reactivación',
+        title: ' Campaña de Reactivación',
         message: `${inactiveStudents.length} estudiante(s) inactivo(s) detectados`,
         actions: [
           'Enviar correo personalizado de reactivación',
@@ -294,7 +293,7 @@ class RecommendationDecorator extends AnalyticsDecorator {
     if (segments.notStarted > students.length * 0.4) {
       recommendations.push({
         type: 'recommendation',
-        title: '🚀 Estrategia de Inicio',
+        title: 'Estrategia de Inicio',
         message: 'Muchos estudiantes no han comenzado. Mejora el proceso de inicio',
         actions: [
           'Crear un tour guiado del curso',
@@ -310,7 +309,7 @@ class RecommendationDecorator extends AnalyticsDecorator {
     if (course.totalContents < 8) {
       recommendations.push({
         type: 'recommendation',
-        title: '📚 Expansión de Contenido',
+        title: ' Expansión de Contenido',
         message: 'El curso tiene pocos módulos. Considera expandir el contenido',
         actions: [
           'Agregar estudios de caso prácticos',
@@ -367,7 +366,7 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
     if (sentimentScore >= 80) {
       insights.push({
         type: 'sentiment',
-        title: '😊 Ambiente Positivo',
+        title: ' Ambiente Positivo',
         message: 'Los estudiantes muestran alto compromiso y motivación',
         emoji: '😊',
         score: sentimentScore,
@@ -380,7 +379,7 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
     } else if (sentimentScore >= 60) {
       insights.push({
         type: 'sentiment',
-        title: '👍 Progreso Estable',
+        title: ' Progreso Estable',
         message: 'Los estudiantes avanzan a buen ritmo',
         emoji: '👍',
         score: sentimentScore,
@@ -393,7 +392,7 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
     } else if (sentimentScore >= 40) {
       insights.push({
         type: 'sentiment',
-        title: '😐 Necesita Atención',
+        title: ' Necesita Atención',
         message: 'Algunos estudiantes muestran signos de desmotivación',
         emoji: '😐',
         score: sentimentScore,
@@ -408,7 +407,7 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
     } else {
       insights.push({
         type: 'sentiment',
-        title: '😟 Intervención Requerida',
+        title: ' Intervención Requerida',
         message: 'Baja motivación general detectada',
         emoji: '😟',
         score: sentimentScore,
@@ -427,7 +426,7 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
     if (lowMotivationStudents.length > 0) {
       insights.push({
         type: 'sentiment-detail',
-        title: '💔 Estudiantes Desmotivados',
+        title: ' Estudiantes Desmotivados',
         message: `${lowMotivationStudents.length} estudiante(s) necesitan apoyo adicional`,
         students: lowMotivationStudents,
         action: 'Contactar con mensaje de apoyo y ofrecer ayuda'
@@ -445,14 +444,11 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
     students.forEach(student => {
       let studentScore = 50; 
       
-      // Factor: Progreso general
       studentScore += (student.progress / 100) * 20;
       
-      // Factor: Consistencia (simulada)
       const consistency = this.calculateConsistency(student);
       studentScore += consistency * 15;
       
-      // Factor: Actividad reciente
       const activityScore = this.getActivitySentimentScore(student.lastActivity);
       studentScore += activityScore;
       
@@ -463,7 +459,7 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
   }
 
   calculateConsistency(student) {
-    // Simular consistencia basada en progreso y actividad
+    
     if (student.progress === 0) return 0.3;
     if (student.progress === 100) return 0.9;
     
@@ -497,15 +493,12 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
   }
 
   calculateStudentSentiment(student) {
-    let score = student.progress; // Base del progreso
-    
-    // Penalizar inactividad
+    let score = student.progress; 
+
     const daysInactive = this.getDaysSinceLastActivity(student.lastActivity);
     if (daysInactive > 21) score -= 30;
     else if (daysInactive > 14) score -= 20;
     else if (daysInactive > 7) score -= 10;
-    
-    // Bonificar progreso alto
     if (student.progress > 80) score += 10;
     
     return Math.max(0, Math.min(100, score));
@@ -534,13 +527,10 @@ class SentimentAnalysisDecorator extends AnalyticsDecorator {
 // Función para aplicar solo los decorators que quieres mantener
 const enhanceAnalyticsWithAI = (analyticsData) => {
   let analytics = new AnalyticsBase(analyticsData);
-  
-  // Aplicar SOLO los decorators que quieres mantener
   analytics = new PredictiveAnalyticsDecorator(analytics);
   analytics = new ComparativeAnalyticsDecorator(analytics);
   analytics = new RecommendationDecorator(analytics);
   analytics = new SentimentAnalysisDecorator(analytics);
-  // NOTA: Eliminé GamificationDecorator y PersonalizationDecorator
   
   return analytics;
 };

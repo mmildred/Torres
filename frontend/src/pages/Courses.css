@@ -1,4 +1,4 @@
-/* Courses.css - Versión Optimizada y Limpia */
+/* Courses.css - Versión Corregida y Optimizada */
 .courses-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -266,6 +266,8 @@
   transform: scale(1.05);
 }
 
+/* SISTEMA DE BADGES CORREGIDO */
+/* Categoría - esquina superior izquierda */
 .course-category {
   position: absolute;
   top: 12px;
@@ -278,12 +280,29 @@
   font-weight: 600;
   color: #475569;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.course-level-tag {
+/* Contenedor principal para badges de la esquina superior derecha */
+.course-badges-top-right {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 10;
+  max-width: 150px;
+}
+
+/* Nivel del curso - PRIMERA LÍNEA */
+.course-level-tag {
+  /* No necesita posición absoluta aquí, ya está contenido en course-badges-top-right */
 }
 
 .level-badge {
@@ -293,8 +312,78 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: inline-block;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* Estado del curso - SEGUNDA LÍNEA (debajo del nivel) */
+.course-status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.course-status-badge.available {
+  background: #28a745;
+  color: white;
+}
+
+.course-status-badge.closed {
+  background: #dc3545;
+  color: white;
+}
+
+.course-status-badge.enrollment-closed {
+  background: #ffc107;
+  color: #000;
+}
+
+.course-status-badge.open {
+  background: #17a2b8;
+  color: white;
+}
+
+/* Badge de inscrito - esquina inferior izquierda */
+.enrolled-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: #10b981;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 8;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Badge offline - esquina inferior derecha */
+.offline-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: #6c757d;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  z-index: 8;
+  box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* Niveles de badges */
 .level-badge.beginner,
 .level-badge.principiante {
   background: #e8f5e8;
@@ -371,37 +460,6 @@
 }
 
 /* Sistema de Períodos de Curso */
-.course-status-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  z-index: 2;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.course-status-badge.closed {
-  background: #dc3545;
-  color: white;
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
-}
-
-.course-status-badge.enrollment-closed {
-  background: #ffc107;
-  color: #000;
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
-}
-
-.course-status-badge.open {
-  background: #28a745;
-  color: white;
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
-}
-
 .course-dates-info {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: 10px;
@@ -591,32 +649,6 @@
   opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;
-}
-
-/* Badges */
-.enrolled-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #10b981;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  z-index: 2;
-}
-
-.offline-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #6c757d;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: bold;
 }
 
 /* Empty State */
@@ -833,8 +865,17 @@
   }
   
   .course-status-badge {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     padding: 4px 8px;
+  }
+  
+  .level-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+  
+  .course-badges-top-right {
+    max-width: 130px;
   }
   
   .course-dates-info {
@@ -872,5 +913,20 @@
   
   .guest-banner {
     padding: 1rem;
+  }
+  
+  .course-badges-top-right {
+    max-width: 110px;
+    gap: 6px;
+  }
+  
+  .course-status-badge {
+    font-size: 0.6rem;
+    padding: 3px 6px;
+  }
+  
+  .level-badge {
+    font-size: 9px;
+    padding: 3px 6px;
   }
 }

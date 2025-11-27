@@ -1,4 +1,3 @@
-// utils/emailService.js - CONFIGURACIÓN GMAIL MEJORADA
 import nodemailer from 'nodemailer';
 
 const createTransporter = () => {
@@ -14,7 +13,7 @@ const createTransporter = () => {
     service: 'gmail',
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, // true para 465, false para otros puertos
+    secure: false, 
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
@@ -69,8 +68,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
 
   try {
     const transporter = createTransporter();
-    
-    // Verificar la conexión primero
+   
     await transporter.verify();
     console.log('✅ Conexión con Gmail establecida');
     

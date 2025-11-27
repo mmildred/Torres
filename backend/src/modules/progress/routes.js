@@ -20,7 +20,7 @@ r.post('/', auth, async (req, res) => {
   }
 });
 
-r.get('/:courseId', auth, async (req, res) => {  // ← Solo auth
+r.get('/:courseId', auth, async (req, res) => {
   const list = await Progress.find({ userId: req.user.id, courseId: req.params.courseId });
   res.json(list.map(x => x.toJSON()));
 });

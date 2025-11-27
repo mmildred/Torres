@@ -4,6 +4,26 @@ import api from "../api";
 import { getUser, isAuthenticated } from "../auth";
 import "./Courses.css";
 
+const enhanceCoursesWithDates = (courses) => {
+  return courses.map(course => {
+
+    if (course.hasEndDate !== undefined) {
+      return course;
+    }
+
+    const now = new Date();
+    const randomDays = Math.floor(Math.random() * 30) + 1;
+
+    return {
+      ...course,
+      hasEndDate: Math.random() > 0.5,
+      enrollmentEndDate: new Date(now.getTime() + (randomDays * 24 * 60 * 60 * 1000)).toISOString(),
+      courseEndDate: new Date(now.getTime() + ((randomDays + 30) * 24 * 60 * 60 * 1000)).toISOString(),
+      isClosed: Math.random() > 0.8
+    };
+  });
+};
+
 export default function Courses() {
   const [courses, setCourses] = useState([]);
   const [filteredCourses, setFilteredCourses] = useState([]);
@@ -27,10 +47,10 @@ export default function Courses() {
   // Función para verificar si el curso está abierto para inscripción
   const isCourseOpenForEnrollment = (course) => {
     if (!course.hasEndDate) return true; // Sin fecha límite, siempre abierto
-    
+
     const now = new Date();
     const enrollmentEnd = new Date(course.enrollmentEndDate);
-    
+
     return now <= enrollmentEnd && !course.isClosed;
   };
 
@@ -38,10 +58,10 @@ export default function Courses() {
   const isCourseClosed = (course) => {
     if (course.isClosed) return true;
     if (!course.hasEndDate) return false;
-    
+
     const now = new Date();
     const courseEnd = new Date(course.courseEndDate);
-    
+
     return now > courseEnd;
   };
 
@@ -61,21 +81,20 @@ export default function Courses() {
     if (!course.hasEndDate) {
       return <div className="course-status-badge available">🟢 Disponible</div>;
     }
-    
+
     if (isCourseClosed(course)) {
       return <div className="course-status-badge closed">🔒 Cerrado</div>;
     }
-    
+
     if (!isCourseOpenForEnrollment(course)) {
       return <div className="course-status-badge enrollment-closed">⏰ Inscripciones Cerradas</div>;
     }
-    
+
     return <div className="course-status-badge open">✅ Abierto</div>;
   };
 
-  // Componente para mostrar información de fechas
   const CourseDateInfo = ({ course }) => {
-    // Si el curso no tiene fechas definidas, mostrar duración normal
+    
     if (!course.hasEndDate) {
       return (
         <div className="course-duration-info">
@@ -89,11 +108,11 @@ export default function Courses() {
         </div>
       );
     }
-    
+
     const now = new Date();
     const enrollmentEnd = new Date(course.enrollmentEndDate);
     const courseEnd = new Date(course.courseEndDate);
-    
+
     return (
       <div className="course-dates-info">
         <div className="date-item">
@@ -104,7 +123,7 @@ export default function Courses() {
           <span className="date-label">Cierra el:</span>
           <span className="date-value">{formatDate(course.courseEndDate)}</span>
         </div>
-        
+
         {/* Contador regresivo */}
         {now < enrollmentEnd && (
           <div className="countdown">
@@ -117,9 +136,6 @@ export default function Courses() {
     );
   };
 
-
-
-  // Cargar cursos desde cache (si existen)
   const loadCachedCourses = () => {
     try {
       const cachedCourses = localStorage.getItem("cached_courses");
@@ -143,21 +159,18 @@ export default function Courses() {
     return false;
   };
 
-  // Extraer categorías únicas de los cursos
   const extractCategories = (coursesList) => {
     const uniqueCategories = [...new Set(coursesList
       .map(course => course.category)
       .filter(category => category && category.trim() !== "")
     )].sort();
-    
+
     setCategories(uniqueCategories);
   };
 
-  // Aplicar filtros
   const applyFilters = useCallback(() => {
     let filtered = courses;
 
-    // Filtro por término de búsqueda (título o descripción)
     if (searchTerm) {
       filtered = filtered.filter(course =>
         course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,14 +180,14 @@ export default function Courses() {
 
     // Filtro por categoría
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(course => 
+      filtered = filtered.filter(course =>
         course.category === selectedCategory
       );
     }
 
     // Filtro por nivel
     if (selectedLevel !== "all") {
-      filtered = filtered.filter(course => 
+      filtered = filtered.filter(course =>
         course.level?.toLowerCase() === selectedLevel.toLowerCase()
       );
     }
@@ -493,7 +506,7 @@ export default function Courses() {
       } else {
         alert(
           err.response?.data?.message ||
-            "Error al inscribirse en el curso"
+          "Error al inscribirse en el curso"
         );
       }
     } finally {
@@ -664,7 +677,7 @@ export default function Courses() {
             </button>
           )}
         </div>
-        
+
         <div className="filters-grid">
           {/* Búsqueda por texto */}
           <div className="filter-group">
@@ -727,13 +740,12 @@ export default function Courses() {
           </span>
           {(searchTerm || selectedCategory !== "all" || selectedLevel !== "all") && (
             <span className="active-filters">
-              Filtros activos: 
+              Filtros activos:
               {searchTerm && ` "${searchTerm}"`}
               {selectedCategory !== "all" && ` • ${selectedCategory}`}
-              {selectedLevel !== "all" && ` • ${
-                selectedLevel === "beginner" ? "Principiante" :
-                selectedLevel === "intermediate" ? "Intermedio" : "Avanzado"
-              }`}
+              {selectedLevel !== "all" && ` • ${selectedLevel === "beginner" ? "Principiante" :
+                  selectedLevel === "intermediate" ? "Intermedio" : "Avanzado"
+                }`}
             </span>
           )}
         </div>
@@ -786,32 +798,39 @@ export default function Courses() {
                     }}
                     loading="lazy"
                   />
+
+                  {/* Categoría - esquina superior izquierda */}
                   <div className="course-category">
                     {course.category || "General"}
                   </div>
-                  <div className="course-level-tag">
-                    <span
-                      className={`level-badge ${
-                        course.level?.toLowerCase() || "beginner"
-                      }`}
-                    >
-                      {course.level === "beginner"
-                        ? "Principiante"
-                        : course.level === "intermediate"
-                        ? "Intermedio"
-                        : course.level === "advanced"
-                        ? "Avanzado"
-                        : "Principiante"}
-                    </span>
+
+                  {/* Badges esquina superior derecha - Nivel y Estado en columna */}
+                  <div className="course-badges-top-right">
+                    <div className="course-level-tag">
+                      <span
+                        className={`level-badge ${course.level?.toLowerCase() || "beginner"
+                          }`}
+                      >
+                        {course.level === "beginner"
+                          ? "Principiante"
+                          : course.level === "intermediate"
+                            ? "Intermedio"
+                            : course.level === "advanced"
+                              ? "Avanzado"
+                              : "Principiante"}
+                      </span>
+                    </div>
+
+                    {/* Estado del curso - debajo del nivel */}
+                    <CourseStatusBadge course={course} />
                   </div>
 
-                  {/* Badge de estado del curso */}
-                  <CourseStatusBadge course={course} />
-
+                  {/* Badge de inscrito - esquina inferior izquierda */}
                   {isEnrolled && (
                     <div className="enrolled-badge">✅ Inscrito</div>
                   )}
 
+                  {/* Badge offline - esquina inferior derecha */}
                   {prog.offline && (
                     <div className="offline-badge">📴 Offline</div>
                   )}
@@ -846,7 +865,7 @@ export default function Courses() {
                     {course.description?.slice(0, 120) ||
                       "Sin descripción disponible..."}
                     {course.description &&
-                    course.description.length > 120
+                      course.description.length > 120
                       ? "..."
                       : ""}
                   </p>
@@ -900,8 +919,8 @@ export default function Courses() {
                           title={isClosed ? "Este curso ha cerrado" : ""}
                         >
                           <span className="btn-icon">▶️</span>
-                          {isClosed ? "Curso Cerrado" : 
-                           prog.progress === 100 ? "🎉 Certificado" : "Continuar"}
+                          {isClosed ? "Curso Cerrado" :
+                            prog.progress === 100 ? "🎉 Certificado" : "Continuar"}
                         </button>
                       ) : userIsInstructor ? (
                         <button
@@ -918,15 +937,15 @@ export default function Courses() {
                           className="btn btn-primary"
                           onClick={() => handleEnroll(course._id)}
                           disabled={isLoading || offlineMode || !isOpenForEnrollment || isClosed}
-                          title={!isOpenForEnrollment ? 
-                            "Las inscripciones para este curso han cerrado" : 
+                          title={!isOpenForEnrollment ?
+                            "Las inscripciones para este curso han cerrado" :
                             isClosed ? "Este curso ha cerrado" : ""}
                         >
                           <span className="btn-icon">🎯</span>
                           {isClosed ? "Curso Cerrado" :
-                           !isOpenForEnrollment ? "Inscripciones Cerradas" :
-                           isLoading ? "Inscribiendo..." :
-                           offlineMode ? "Sin conexión" : "Inscribirse"}
+                            !isOpenForEnrollment ? "Inscripciones Cerradas" :
+                              isLoading ? "Inscribiendo..." :
+                                offlineMode ? "Sin conexión" : "Inscribirse"}
                         </button>
                       )
                     ) : (
@@ -934,13 +953,13 @@ export default function Courses() {
                         className="btn btn-primary"
                         onClick={() => navigate("/register")}
                         disabled={!isOpenForEnrollment || isClosed}
-                        title={!isOpenForEnrollment ? 
-                          "Las inscripciones para este curso han cerrado" : 
+                        title={!isOpenForEnrollment ?
+                          "Las inscripciones para este curso han cerrado" :
                           isClosed ? "Este curso ha cerrado" : ""}
                       >
                         <span className="btn-icon">🔒</span>
                         {isClosed ? "Curso Cerrado" :
-                         !isOpenForEnrollment ? "Inscripciones Cerradas" : "Acceder al Curso"}
+                          !isOpenForEnrollment ? "Inscripciones Cerradas" : "Acceder al Curso"}
                       </button>
                     )}
 

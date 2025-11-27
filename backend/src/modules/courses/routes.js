@@ -404,7 +404,7 @@ r.get('/instructor/my-courses', auth(), async (req, res) => {
   }
 });
 
-// 4. CREAR CURSO (POST antes de las rutas GET con parámetros)
+//  CREAR CURSO (POST antes de las rutas GET con parámetros)
 r.post('/', auth('teacher'), async (req, res) => {
   try {
     console.log("📥 RECIBIENDO PETICIÓN PARA CREAR CURSO");
@@ -457,7 +457,57 @@ r.post('/', auth('teacher'), async (req, res) => {
   }
 });
 
-// 5. LISTADO GENERAL DE CURSOS
+// 6. ELIMINAR CURSO - AGREGAR ESTA RUTA
+r.delete('/:id', auth(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log(`🗑️ Eliminando curso: ${id}, Usuario: ${userId}`);
+
+    const course = await Course.findById(id);
+    
+    if (!course) {
+      return res.status(404).json({ error: 'Curso no encontrado' });
+    }
+
+    // Verificar permisos: admin o owner del curso
+    const isOwner = course.owner && course.owner._id && course.owner._id.toString() === userId;
+    const isAdmin = req.user.role === 'admin';
+    
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'No tienes permisos para eliminar este curso' });
+    }
+
+    // Eliminar todas las inscripciones asociadas al curso
+    await Enrollment.deleteMany({ courseId: id });
+    console.log(`📝 Inscripciones eliminadas para el curso: ${id}`);
+
+    // Eliminar el curso
+    await Course.findByIdAndDelete(id);
+    console.log(`✅ Curso eliminado exitosamente: ${id}`);
+
+    res.json({ 
+      success: true,
+      message: 'Curso eliminado exitosamente',
+      deletedCourseId: id
+    });
+
+  } catch (error) {
+    console.error('❌ ERROR eliminando curso:', error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: 'ID de curso inválido' });
+    }
+    
+    res.status(500).json({ 
+      error: 'Error interno del servidor al eliminar el curso',
+      details: error.message 
+    });
+  }
+});
+
+//  LISTADO GENERAL DE CURSOS
 r.get('/', async (req, res) => {
   try {
     let filter = {};
@@ -897,7 +947,7 @@ r.post('/:courseId/enroll', auth(), async (req, res) => {
   }
 });
 
-// ✅ RUTA AUXILIAR: Verificar estado de inscripción (útil para debugging)
+//RUTA AUXILIAR: Verificar estado de inscripción (útil para debugging)
 r.get('/:courseId/enrollment/status', auth(), async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -1049,7 +1099,7 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
       return res.status(404).json({ message: 'Contenido no encontrado' });
     }
 
-    // ✅ CORRECCIÓN: Actualizar solo los campos proporcionados
+    //Actualizar solo los campos proporcionados
     Object.keys(updateData).forEach(key => {
       if (updateData[key] !== undefined && updateData[key] !== null) {
         course.contents[contentIndex][key] = updateData[key];
@@ -1062,7 +1112,7 @@ r.put('/:courseId/contents/:contentId', auth('teacher'), async (req, res) => {
     
     console.log("✅ Contenido actualizado exitosamente");
     
-    // ✅ CORRECCIÓN: Devolver el contenido actualizado específico
+    //Devolver el contenido actualizado específico
     const updatedContent = course.contents[contentIndex];
     res.json({
       success: true,

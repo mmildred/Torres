@@ -54,7 +54,6 @@
   const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
   app.use(express.static(frontendDist));
 
-  // Manejar SPA routing
   app.get('*', (req, res, next) => {
     const isApi =
       req.path.startsWith('/auth') ||
