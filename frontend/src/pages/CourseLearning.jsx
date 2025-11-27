@@ -17,7 +17,7 @@ export default function CourseLearning() {
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    console.log('🔄 CourseLearning iniciado para curso:', courseId);
+    console.log('CourseLearning iniciado para curso:', courseId);
     fetchCourseData();
   }, [courseId]);
 
@@ -26,14 +26,14 @@ export default function CourseLearning() {
       setLoading(true);
       setError(null);
       
-      console.log('📥 Cargando datos del curso...');
+      console.log(' Cargando datos del curso...');
       
       const [courseRes, progressRes] = await Promise.all([
         api.get(`/courses/${courseId}`),
         api.get(`/courses/${courseId}/progress/me`)
       ]);
       
-      console.log('✅ Datos cargados:', {
+      console.log('Datos cargados:', {
         course: courseRes.data.title,
         enrollment: progressRes.data
       });
@@ -47,7 +47,7 @@ export default function CourseLearning() {
       }
       
     } catch (error) {
-      console.error('❌ Error cargando datos:', error);
+      console.error('Error cargando datos:', error);
       setError(error.response?.data?.message || error.message);
       
       if (error.response?.status === 403 || error.response?.status === 404) {
@@ -62,11 +62,11 @@ export default function CourseLearning() {
  const handleMarkComplete = async (contentId) => {
   try {
     setUpdating(true);
-    console.log('🔄 Marcando contenido como completado:', contentId);
+    console.log(' Marcando contenido como completado:', contentId);
     
     const response = await api.post(`/courses/${courseId}/contents/${contentId}/complete`);
     
-    console.log('✅ Contenido marcado como completado:', response.data);
+    console.log(' Contenido marcado como completado:', response.data);
   
     setEnrollment(prev => ({
       ...prev,
@@ -77,7 +77,7 @@ export default function CourseLearning() {
     }));
     
   } catch (error) {
-    console.error('❌ Error marcando contenido como completado:', error);
+    console.error(' Error marcando contenido como completado:', error);
     
     if (error.response?.status === 401) {
       alert('Debes iniciar sesión para completar contenidos');

@@ -26,19 +26,18 @@ export default function Analytics() {
       setLoading(true);
       setError(null);
       
-      console.log("📊 Cargando analytics para curso:", courseId);
+      console.log(" Cargando analytics para curso:", courseId);
 
       // Opción 1: Si tienes un endpoint específico de analytics
       try {
         const analyticsResponse = await api.get(`courses/${courseId}/analytics`);
         const processedData = processApiAnalytics(analyticsResponse.data);
         
-        // ✅ DEBUG EN POSICIÓN CORRECTA
-        console.log("✅ Analytics cargados desde endpoint específico");
-        console.log("🐛 DEBUG - Estructura completa de analytics:", processedData);
-        console.log("🐛 DEBUG - Students array:", processedData?.students);
-        console.log("🐛 DEBUG - Primer student:", processedData?.students?.[0]);
-        console.log("🐛 DEBUG - Keys disponibles:", processedData?.students?.map(s => s ? Object.keys(s) : 'null'));
+        console.log(" Analytics cargados desde endpoint específico");
+        console.log(" DEBUG - Estructura completa de analytics:", processedData);
+        console.log(" DEBUG - Students array:", processedData?.students);
+        console.log(" DEBUG - Primer student:", processedData?.students?.[0]);
+        console.log(" DEBUG - Keys disponibles:", processedData?.students?.map(s => s ? Object.keys(s) : 'null'));
         
         setAnalytics(processedData);
         return;
@@ -51,34 +50,34 @@ export default function Analytics() {
         const courseRes = await api.get(`courses/${courseId}`);
         const course = courseRes.data;
 
-        console.log("📚 Curso cargado:", course.title);
+        console.log(" Curso cargado:", course.title);
 
         // Intentar cargar enrollments, pero si falla, usar array vacío
         let enrollments = [];
         try {
           const enrollmentsRes = await api.get(`courses/${courseId}/enrollments`);
           enrollments = enrollmentsRes.data;
-          console.log("👥 Inscripciones cargadas:", enrollments.length);
+          console.log(" Inscripciones cargadas:", enrollments.length);
         } catch (enrollError) {
-          console.warn("⚠️ No se pudieron cargar las inscripciones:", enrollError.message);
+          console.warn(" No se pudieron cargar las inscripciones:", enrollError.message);
           enrollments = [];
         }
 
         // Procesar datos para analytics
         const processedAnalytics = buildAnalyticsFromData(course, enrollments);
         
-        // ✅ DEBUG PARA MÉTODO ALTERNATIVO
-        console.log("🐛 DEBUG - Analytics método alternativo:", processedAnalytics);
+        //DEBUG PARA MÉTODO ALTERNATIVO
+        console.log(" DEBUG - Analytics método alternativo:", processedAnalytics);
         
         setAnalytics(processedAnalytics);
 
       } catch (courseError) {
-        console.error("❌ Error cargando curso:", courseError);
+        console.error(" Error cargando curso:", courseError);
         throw courseError;
       }
 
     } catch (error) {
-      console.error("❌ Error cargando analytics:", error);
+      console.error(" Error cargando analytics:", error);
       handleError(error);
     } finally {
       setLoading(false);
@@ -118,7 +117,7 @@ const processApiAnalytics = (data) => {
 };
 
   const buildAnalyticsFromData = (course, enrollments) => {
-    // Construir analytics desde datos del curso y enrollments
+
     const students = processEnrollments(enrollments, course);
     const summary = calculateSummary(students);
 
@@ -149,7 +148,7 @@ const processApiAnalytics = (data) => {
                        Math.round((progress / 100) * totalContents);
 
       return {
-        // ✅ KEY MEJORADA con múltiples fallbacks
+
         studentId: student._id || student.id || enrollment._id || `enrollment-${index}`,
         name: student.name || student.fullName || student.username || "Estudiante",
         email: student.email || "Sin email",
@@ -162,7 +161,7 @@ const processApiAnalytics = (data) => {
   };
 
   const getTotalContents = (course) => {
-    // Intentar obtener el total de contenidos del curso
+
     if (course.totalContents) return course.totalContents;
     if (course.modules && Array.isArray(course.modules)) return course.modules.length;
     if (course.lessons && Array.isArray(course.lessons)) return course.lessons.length;
@@ -172,7 +171,7 @@ const processApiAnalytics = (data) => {
         return total + (section.lessons?.length || 0);
       }, 0);
     }
-    return 10; // Valor por defecto
+    return 10; 
   };
 
   const calculateSummary = (students) => {
@@ -265,7 +264,7 @@ const processApiAnalytics = (data) => {
   }
 
   if (!analytics) {
-    console.log("❌ Analytics es NULL o UNDEFINED");
+    console.log(" Analytics es NULL o UNDEFINED");
     return (
       <div className="error-container">
         <h2>Error al cargar los datos</h2>
@@ -277,7 +276,6 @@ const processApiAnalytics = (data) => {
     );
   }
 
-  // ✅ VERIFICACIÓN MEJORADA de la estructura de datos
   if (!analytics.students || !Array.isArray(analytics.students)) {
     console.log("❌ PROBLEMA: students no es un array:", analytics.students);
     return (
