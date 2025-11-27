@@ -790,13 +790,18 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
       return res.status(400).json({ message: 'Archivo requerido' });
     }
 
-    const course = await Course.findById(courseId);
+    // ✅ CARGAR CURSO COMPLETO CON POPULATE PARA ASEGURAR DATOS DEL OWNER
+    const course = await Course.findById(courseId)
+      .populate('owner', 'name email role')
+      .populate('instructors', 'name email role');
+    
     if (!course) {
       return res.status(404).json({ message: 'Curso no encontrado' });
     }
 
-    const isOwner = course.owner._id.toString() === req.user.id;
-    const isInstructor = course.instructors.some(instructor => 
+    // ✅ VERIFICAR PERMISOS CON DATOS COMPLETOS
+    const isOwner = course.owner && course.owner._id.toString() === req.user.id;
+    const isInstructor = course.instructors && course.instructors.some(instructor => 
       instructor._id.toString() === req.user.id
     );
     
@@ -804,6 +809,7 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
       return res.status(403).json({ message: 'No tienes permisos para subir archivos' });
     }
 
+    // ✅ FUNCIÓN PARA DETERMINAR TIPO DE ARCHIVO
     const getFileType = (filename) => {
       const ext = path.extname(filename).toLowerCase();
       if (['.pdf', '.doc', '.docx', '.txt', '.ppt', '.pptx'].includes(ext)) return 'document';
@@ -812,6 +818,7 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
       return 'document';
     };
 
+    // ✅ CREAR NUEVO CONTENIDO
     const newContent = {
       title: title || file.originalname,
       type: getFileType(file.originalname),
@@ -827,19 +834,58 @@ r.post('/:courseId/upload', auth('teacher'), upload.single('file'), async (req, 
       createdAt: new Date()
     };
 
+    // ✅ AGREGAR CONTENIDO AL CURSO
     course.contents.push(newContent);
+    
+    // ✅ ASEGURAR QUE EL OWNER TENGA TODOS LOS CAMPOS REQUERIDOS
+    if (course.owner) {
+      // Si el owner está poblado, asegurar que tenga todos los campos
+      course.owner = {
+        _id: course.owner._id,
+        name: course.owner.name || req.user.name,
+        email: course.owner.email || req.user.email,
+        role: course.owner.role || req.user.role || 'teacher'
+      };
+    } else {
+      // Si no hay owner, usar el usuario actual
+      course.owner = {
+        _id: req.user.id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role || 'teacher'
+      };
+    }
+    
+    // ✅ GUARDAR CURSO
     await course.save();
 
-    const updatedCourse = await Course.findById(courseId);
+    // ✅ ENVIAR RESPUESTA EXITOSA
     res.status(201).json({
       message: 'Archivo subido exitosamente',
       content: newContent,
-      course: updatedCourse.toJSON()
+      course: {
+        _id: course._id,
+        title: course.title,
+        contents: course.contents
+      }
     });
 
   } catch (error) {
     console.error('Error subiendo archivo:', error);
-    res.status(500).json({ message: 'Error del servidor' });
+    
+    // ✅ MANEJO ESPECÍFICO DEL ERROR DE VALIDACIÓN
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: 'Error de validación',
+        errors: errors 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Error del servidor al subir archivo',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
