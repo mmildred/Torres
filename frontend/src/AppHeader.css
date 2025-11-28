@@ -1,4 +1,6 @@
 /* AppHeader.css */
+
+/* ================== Variables globales ================== */
 :root {
   --header-height: 70px;
   --border-radius: 8px;
@@ -30,12 +32,36 @@
   --header-bg: rgba(255, 255, 255, 0.98);
 }
 
+/* ================== Global / Layout ================== */
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Fondo general de la app */
+body {
+  background: radial-gradient(circle at top left, #EDF2FF 0, #F7FAFC 40%, #E6FFFA 100%);
+  color: var(--text);
+}
+
+/* Contenedor principal de la app */
+.app-container {
+  min-height: 100vh;
+  background: transparent;
+}
+
 /* Espacio para que el contenido no quede detrás del navbar */
 .header-spacer {
   height: var(--header-height);
 }
 
-/* Header */
+/* ================== Header / Navbar ================== */
 .header {
   position: fixed;
   top: 0;
@@ -65,7 +91,7 @@
   gap: 2rem;
 }
 
-/* Logo */
+/* ================== Logo ================== */
 .logo-link {
   text-decoration: none;
   display: flex;
@@ -83,7 +109,7 @@
   transform: scale(1.05);
 }
 
-/* Navegación principal */
+/* ================== Navegación principal ================== */
 .nav {
   display: flex;
   align-items: center;
@@ -100,10 +126,10 @@
 
 /* Botón de cursos */
 .nav-link {
-  padding: 0.75rem 1.5rem;
+  padding: 0.65rem 1.4rem;
   text-decoration: none;
   color: var(--text);
-  border-radius: var(--border-radius);
+  border-radius: 999px;
   transition: var(--transition);
   font-size: 0.95rem;
   background: transparent;
@@ -116,17 +142,17 @@
 }
 
 .nav-link.active {
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), #7C3AED);
   color: white;
   box-shadow: 0 2px 8px rgba(94, 39, 119, 0.3);
 }
 
 .nav-link.active:hover {
-  background: var(--primary-hover);
+  background: linear-gradient(135deg, var(--primary-hover), #6D28D9);
   color: white;
 }
 
-/* Botones de autenticación */
+/* ================== Botones de autenticación ================== */
 .auth-buttons {
   display: flex;
   align-items: center;
@@ -134,11 +160,11 @@
 }
 
 .auth-link {
-  padding: 0.75rem 1.5rem;
+  padding: 0.6rem 1.4rem;
   text-decoration: none;
-  border-radius: var(--border-radius);
+  border-radius: 999px;
   transition: var(--transition);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .login-link {
@@ -167,7 +193,7 @@
   box-shadow: 0 4px 12px rgba(35, 166, 150, 0.4);
 }
 
-/* Menú de usuario */
+/* ================== Menú de usuario ================== */
 .user-menu-container {
   position: relative;
 }
@@ -176,13 +202,14 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.9rem;
   background: var(--bg-secondary);
   border: 2px solid var(--border);
-  border-radius: var(--border-radius);
+  border-radius: 999px;
   cursor: pointer;
   transition: var(--transition);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  color: var(--text);
 }
 
 .user-button:hover {
@@ -191,23 +218,24 @@
   box-shadow: 0 2px 8px var(--shadow);
 }
 
-/* CAMBIO IMPORTANTE: Quitamos el fondo negro cuando está abierto */
+/* Cuando está abierto, un poco más marcado pero sin negro feo */
 .user-button.open {
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: white;
-  border-color: var(--primary);
+  border-color: transparent;
 }
 
 .user-avatar {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--secondary), var(--light-accent));
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   transition: var(--transition);
 }
 
@@ -217,19 +245,23 @@
 
 .user-name {
   font-size: 0.95rem;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dropdown-arrow {
   font-size: 0.7em;
   transition: var(--transition);
-  margin-left: 0.25rem;
+  margin-left: 0.1rem;
 }
 
 .user-button.open .dropdown-arrow {
   transform: rotate(180deg);
 }
 
-/* Dropdown menu */
+/* ================== Dropdown menu ================== */
 .dropdown-menu {
   position: absolute;
   top: 100%;
@@ -237,13 +269,12 @@
   margin-top: 0.5rem;
   background: var(--header-bg);
   backdrop-filter: blur(10px);
-  border: 1px solid var(--border);
   border-radius: var(--border-radius);
   padding: 0.75rem;
   min-width: 220px;
-  box-shadow: 0 8px 25px var(--shadow);
+  box-shadow: 0 12px 30px var(--shadow);
   animation: dropdownFade 0.2s ease;
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
 }
 
 @keyframes dropdownFade {
@@ -267,6 +298,7 @@
 .user-welcome {
   margin-bottom: 0.25rem;
   color: var(--text);
+  font-weight: 600;
 }
 
 .user-role {
@@ -276,18 +308,26 @@
 .role-badge {
   padding: 0.3rem 0.8rem;
   border-radius: 20px;
-  font-size: 0.75em;
+  font-size: 0.72em;
   color: white;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
+/* Admin */
 .role-badge.admin {
   background: linear-gradient(135deg, var(--accent), #E87C4A);
 }
 
+/* Estudiante */
 .role-badge.student {
   background: linear-gradient(135deg, var(--secondary), var(--light-accent));
+}
+
+/* Profesor / Teacher (para que combine con el morado) */
+.role-badge.teacher,
+.role-badge.profesor {
+  background: linear-gradient(135deg, var(--primary), #7C3AED);
 }
 
 .menu-divider {
@@ -300,7 +340,7 @@
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.9rem;
   text-decoration: none;
   color: var(--text);
   background: none;
@@ -329,7 +369,7 @@
   color: #C53030;
 }
 
-/* Responsive */
+/* ================== Responsive ================== */
 @media (max-width: 768px) {
   .header-content {
     padding: 0 1rem;
@@ -340,7 +380,7 @@
   }
   
   .nav-link {
-    padding: 0.6rem 1rem;
+    padding: 0.55rem 1rem;
     font-size: 0.9rem;
   }
   
@@ -353,8 +393,8 @@
   }
   
   .auth-link {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.55rem 1rem;
+    font-size: 0.88rem;
   }
   
   .dropdown-menu {
