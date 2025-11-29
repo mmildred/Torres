@@ -81,14 +81,14 @@ export default function App() {
                       <div className="user-info">
                         <div className="user-welcome">Hola, {user.name}</div>
                         <div className="user-role">
-  <span className={`role-badge ${user.role}`}>
-    {user.role === "admin"
-      ? "Administrador"
-      : user.role === "teacher" || user.role === "profesor"
-      ? "Profesor"
-      : "Estudiante"}
-  </span>
-</div>
+                        <span className={`role-badge ${user.role}`}>
+                          {user.role === "admin"
+                            ? "Administrador"
+                            : user.role === "teacher" || user.role === "profesor"
+                            ? "Profesor"
+                            : "Estudiante"}
+                        </span>
+                      </div>
 
                       </div>
                       

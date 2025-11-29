@@ -405,10 +405,23 @@ r.get('/instructor/my-courses', auth(), async (req, res) => {
 });
 
 //  CREAR CURSO (POST antes de las rutas GET con parámetros)
+//  CREAR CURSO (POST antes de las rutas GET con parámetros)
 r.post('/', auth('teacher'), async (req, res) => {
   try {
     console.log("📥 RECIBIENDO PETICIÓN PARA CREAR CURSO");
-    const { title, description, category, level, duration, thumbnail } = req.body;
+    
+    const {
+      title,
+      description,
+      category,
+      level,
+      duration,
+      thumbnail,
+      // 👇 Campos que vienen de tu formulario en CourseNew.jsx
+      hasEndDate,
+      enrollmentEndDate,
+      courseEndDate
+    } = req.body;
     
     if (!title || !title.trim()) {
       return res.status(400).json({ message: 'Título requerido' });
@@ -418,6 +431,13 @@ r.post('/', auth('teacher'), async (req, res) => {
     if (!creator) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
+
+    // Normalizar hasEndDate (porque puede llegar como "true" string desde el form)
+    const endDateEnabled =
+      hasEndDate === true ||
+      hasEndDate === 'true' ||
+      hasEndDate === 'on' ||
+      hasEndDate === '1';
 
     const courseData = {
       title: title.trim(),
@@ -439,8 +459,19 @@ r.post('/', auth('teacher'), async (req, res) => {
       contents: [],
       isPublished: true,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      // 🔥 Campos de período del curso
+      hasEndDate: endDateEnabled,
+      enrollmentEndDate: endDateEnabled && enrollmentEndDate 
+        ? new Date(enrollmentEndDate) 
+        : null,
+      courseEndDate: endDateEnabled && courseEndDate 
+        ? new Date(courseEndDate) 
+        : null,
+      isClosed: false
     };
+
+    console.log("📝 Datos finales a guardar en BD:", courseData);
 
     const course = await Course.create(courseData);
     res.status(201).json(course.toJSON());
@@ -456,6 +487,7 @@ r.post('/', auth('teacher'), async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 });
+
 
 // 6. ELIMINAR CURSO - AGREGAR ESTA RUTA
 r.delete('/:id', auth(), async (req, res) => {

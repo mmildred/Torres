@@ -6,23 +6,18 @@ import "./Courses.css";
 
 const enhanceCoursesWithDates = (courses) => {
   return courses.map(course => {
-
-    if (course.hasEndDate !== undefined) {
-      return course;
-    }
-
-    const now = new Date();
-    const randomDays = Math.floor(Math.random() * 30) + 1;
+    const hasRealDates = !!(course.enrollmentEndDate || course.courseEndDate);
 
     return {
       ...course,
-      hasEndDate: Math.random() > 0.5,
-      enrollmentEndDate: new Date(now.getTime() + (randomDays * 24 * 60 * 60 * 1000)).toISOString(),
-      courseEndDate: new Date(now.getTime() + ((randomDays + 30) * 24 * 60 * 60 * 1000)).toISOString(),
-      isClosed: Math.random() > 0.8
+      hasEndDate: course.hasEndDate ?? hasRealDates,
+      enrollmentEndDate: course.enrollmentEndDate || null,
+      courseEndDate: course.courseEndDate || null,
+      isClosed: course.isClosed || false
     };
   });
 };
+
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
@@ -46,7 +41,7 @@ export default function Courses() {
 
   // Función para verificar si el curso está abierto para inscripción
   const isCourseOpenForEnrollment = (course) => {
-    if (!course.hasEndDate) return true; // Sin fecha límite, siempre abierto
+    if (!course.hasEndDate || !course.enrollmentEndDate) return true;
 
     const now = new Date();
     const enrollmentEnd = new Date(course.enrollmentEndDate);
@@ -57,7 +52,7 @@ export default function Courses() {
   // Función para verificar si el curso está cerrado
   const isCourseClosed = (course) => {
     if (course.isClosed) return true;
-    if (!course.hasEndDate) return false;
+    if (!course.hasEndDate || !course.courseEndDate) return false;
 
     const now = new Date();
     const courseEnd = new Date(course.courseEndDate);
@@ -94,8 +89,8 @@ export default function Courses() {
   };
 
   const CourseDateInfo = ({ course }) => {
-    
-    if (!course.hasEndDate) {
+    // Si el curso no tiene fechas límite
+    if (!course.hasEndDate || (!course.enrollmentEndDate && !course.courseEndDate)) {
       return (
         <div className="course-duration-info">
           <div className="duration-item">
@@ -110,22 +105,27 @@ export default function Courses() {
     }
 
     const now = new Date();
-    const enrollmentEnd = new Date(course.enrollmentEndDate);
-    const courseEnd = new Date(course.courseEndDate);
+    const enrollmentEnd = course.enrollmentEndDate ? new Date(course.enrollmentEndDate) : null;
+    const courseEnd = course.courseEndDate ? new Date(course.courseEndDate) : null;
 
     return (
       <div className="course-dates-info">
-        <div className="date-item">
-          <span className="date-label">Inscripciones hasta:</span>
-          <span className="date-value">{formatDate(course.enrollmentEndDate)}</span>
-        </div>
-        <div className="date-item">
-          <span className="date-label">Cierra el:</span>
-          <span className="date-value">{formatDate(course.courseEndDate)}</span>
-        </div>
+        {enrollmentEnd && (
+          <div className="date-item">
+            <span className="date-label">Inscripciones hasta:</span>
+            <span className="date-value">{formatDate(course.enrollmentEndDate)}</span>
+          </div>
+        )}
+        
+        {courseEnd && (
+          <div className="date-item">
+            <span className="date-label">Cierra el:</span>
+            <span className="date-value">{formatDate(course.courseEndDate)}</span>
+          </div>
+        )}
 
         {/* Contador regresivo */}
-        {now < enrollmentEnd && (
+        {enrollmentEnd && now < enrollmentEnd && (
           <div className="countdown">
             <span className="countdown-text">
               {Math.ceil((enrollmentEnd - now) / (1000 * 60 * 60 * 24))} días para inscribirse
@@ -201,6 +201,20 @@ export default function Courses() {
       applyFilters();
     }
   }, [courses, applyFilters]);
+
+  // Efecto para debug: verificar datos de cursos
+  useEffect(() => {
+    if (courses.length > 0) {
+      console.log("📊 Cursos recibidos:", courses);
+      console.log("📅 Primer curso con fechas:", {
+        title: courses[0].title,
+        hasEndDate: courses[0].hasEndDate,
+        enrollmentEndDate: courses[0].enrollmentEndDate,
+        courseEndDate: courses[0].courseEndDate,
+        isClosed: courses[0].isClosed
+      });
+    }
+  }, [courses]);
 
   const isCourseInstructor = (course) => {
     if (!user || !course) return false;
