@@ -29,16 +29,12 @@ export default function Analytics() {
       
       console.log("📊 Cargando analytics para curso:", courseId);
 
-      // ✅ USAR EL ENDPOINT CORRECTO QUE SÍ EXISTE
       try {
         console.log("🔄 Llamando a endpoint /analytics...");
         const analyticsRes = await api.get(`/courses/${courseId}/analytics`);
         console.log("✅ Respuesta de analytics:", analyticsRes.data);
         
-        // Procesar los datos del endpoint que SÍ existe
         const processedAnalytics = processApiAnalytics(analyticsRes.data);
-        
-        // Aplicar decorators de IA
         const enhancedAnalytics = enhanceAnalyticsWithAI(processedAnalytics);
         
         console.log("🤖 Insights generados:", enhancedAnalytics.getInsights());
@@ -50,8 +46,6 @@ export default function Analytics() {
         
       } catch (analyticsError) {
         console.error("❌ Error con endpoint analytics:", analyticsError);
-        
-        // FALLBACK: Método alternativo si el endpoint falla
         await loadAnalyticsFallback();
       }
 
@@ -63,18 +57,15 @@ export default function Analytics() {
     }
   };
 
-  // Método alternativo si el endpoint principal falla
   const loadAnalyticsFallback = async () => {
     try {
       console.log("🔄 Usando método alternativo...");
       
-      // 1. Cargar el curso
       const courseRes = await api.get(`/courses/${courseId}`);
       const course = courseRes.data;
       
       console.log("✅ Curso cargado:", course.title);
 
-      // 2. Intentar cargar enrollments (este endpoint también existe en tu backend)
       let enrollments = [];
       try {
         const enrollmentsRes = await api.get(`/courses/${courseId}/enrollments`);
@@ -85,7 +76,6 @@ export default function Analytics() {
         enrollments = [];
       }
 
-      // 3. Construir analytics manualmente
       const processedAnalytics = buildAnalyticsFromData(course, enrollments);
       const enhancedAnalytics = enhanceAnalyticsWithAI(processedAnalytics);
       
@@ -156,7 +146,6 @@ export default function Analytics() {
     const totalContents = getTotalContents(course);
 
     return enrollments.map((enrollment, index) => {
-      // Manejar diferentes estructuras de enrollment
       const student = enrollment.student || enrollment.user || enrollment;
       const progress = enrollment.progress || enrollment.completionPercentage || 0;
       const completed = enrollment.completedContents || enrollment.completedModules || 
@@ -304,17 +293,24 @@ export default function Analytics() {
 
   return (
     <div className="analytics-page">
-      {/* Header */}
+      {/* Header SIN fondo morado, limpio tipo tarjeta */}
       <div className="analytics-header">
-        <button className="btn-back" onClick={() => navigate("/my-courses")}>
-          ← Volver a Mis Cursos
-        </button>
-        <h1>Analytics del Curso</h1>
-        <h2>{analytics.course.title}</h2>
-        {analytics.course.description && (
-          <p className="course-description">{analytics.course.description}</p>
-        )}
-        
+        <div className="header-top-row">
+          <button className="btn-back" onClick={() => navigate("/my-courses")}>
+            <span className="back-arrow">←</span>
+            <span>Volver a Mis Cursos</span>
+          </button>
+          <span className="course-id-pill">ID: {courseId}</span>
+        </div>
+
+        <div className="header-text-block">
+          <h1 className="analytics-title">Analytics del Curso</h1>
+          <h2 className="course-title">{analytics.course.title}</h2>
+          {analytics.course.description && (
+            <p className="course-description">{analytics.course.description}</p>
+          )}
+        </div>
+
         {error && (
           <div className="banner banner-error">
             ⚠️ {error}
@@ -344,13 +340,18 @@ export default function Analytics() {
 
       {/* Lista de Estudiantes */}
       <div className="section">
-        <h2>👥 Progreso de Estudiantes ({analytics.students.length})</h2>
+          <div className="section-header-row">
+
+        <h2 className="section-title">
+          👥 Progreso de Estudiantes
+        </h2>
+            <span className="section-counter-pill">{analytics.students.length} estudiantes</span>
+          </div>
         
         {analytics.students.length > 0 ? (
           <div className="students-list">
             {analytics.students.map((student, index) => {
               const statusConfig = getStatusConfig(student.status);
-              
               const uniqueKey = student.studentId || student._id || `student-${index}`;
               
               return (
@@ -358,13 +359,14 @@ export default function Analytics() {
                   <div className="student-info">
                     <h4>{student.name || "Estudiante"}</h4>
                     <p className="student-email">{student.email || "Sin email"}</p>
-                    <small className="student-activity">
+                    <p className="student-activity">
                       Última actividad: {formatDate(student.lastActivity)}
-                    </small>
-                    <small className="student-completed">
+                    </p>
+                    <p className="student-completed">
                       {student.completedContents || 0} de {analytics.course.totalContents} contenidos completados
-                    </small>
+                    </p>
                   </div>
+
                   <div className="student-progress">
                     <span className="progress-percentage">{student.progress || 0}%</span>
                     <div className="progress-bar">
@@ -374,6 +376,7 @@ export default function Analytics() {
                       ></div>
                     </div>
                   </div>
+
                   <div className={`student-status ${statusConfig.class}`}>
                     {statusConfig.text}
                   </div>
@@ -397,7 +400,14 @@ export default function Analytics() {
         <button className="btn-primary" onClick={loadAnalytics}>
           🔄 Actualizar Datos
         </button>
+        <button className="btn-secondary" onClick={() => navigate(`/courses/${courseId}`)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+          </svg>
+          Ver Curso
+        </button>
       </div>
+      
     </div>
   );
 }
