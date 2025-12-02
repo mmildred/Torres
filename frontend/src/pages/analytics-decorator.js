@@ -43,7 +43,6 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
     const insights = [];
     const { students, summary, course } = data;
 
-    // Predicción de tasa de finalización
     if (students.length >= 3) {
       const completionTrend = this.calculateCompletionTrend(students);
       const predictedCompletion = Math.max(0, Math.min(100, summary.completionRate + completionTrend));
