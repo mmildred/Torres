@@ -139,7 +139,7 @@ class PredictiveAnalyticsDecorator extends AnalyticsDecorator {
   }
 }
 
-// 2. Decorator de Análisis Comparativo (SIMPLIFICADO - sin benchmark de industria)
+// 2. Decorator de Análisis Comparativo
 class ComparativeAnalyticsDecorator extends AnalyticsDecorator {
   getInsights() {
     const baseInsights = super.getInsights();
