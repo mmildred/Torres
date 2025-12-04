@@ -1,7 +1,8 @@
 import express from 'express';
 import crypto from 'crypto';
 import User from './user.model.js';
-import { sendPasswordResetEmail } from '../../utils/emailService.js';
+import { sendPasswordResetEmail, sendPasswordChangedEmail } from '../../utils/emailService.js'; 
+import bcrypt from 'bcrypt';
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = resetTokenExpiry;
     await user.save();
 
+    // 🔥 USAR EL NUEVO SERVICIO
     await sendPasswordResetEmail(user.email, resetToken);
 
     res.json({ 
@@ -68,10 +70,21 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    user.password = newPassword;
+    // Encriptar nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
+
+    // 🔥 ENVIAR EMAIL DE CONFIRMACIÓN
+    try {
+      await sendPasswordChangedEmail(user.email);
+      console.log("📧 Email de cambio de contraseña enviado a:", user.email);
+    } catch (emailError) {
+      console.error("⚠️ Error enviando email de confirmación:", emailError.message);
+    }
 
     res.json({ message: 'Contraseña restablecida exitosamente' });
 
